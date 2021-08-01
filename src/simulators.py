@@ -67,8 +67,25 @@ class StochasticSimulator:
         """
         if self.solver == 'direct':
             self.simulate_one_step_direct(pops, times)
+        elif self.solver == 'first_reaction':
+            self.simulate_one_step_first_reaction(pops, times)             
         else:
             raise NotImplementedError
+
+    def simulate_one_step_first_reaction(self, pops: torch.Tensor, times: torch.Tensor) -> None:
+        """
+        Simulates one step of the first reaction Gillespie simulation method
+        :param pops:  current population values (updated in the function)
+        :param times: current time values (updated in the function)
+        """
+        # Get propensities
+        cur_propensities = self.reaction_system.propensities(pops)
+        # Sample next reactions and reaction times
+        possible_times = self.sample_time(cur_propensities)
+        next_times, next_reaction_ids = torch.min(possible_times, dim=0)
+        # Update time and pops
+        times += next_times
+        pops += torch.vstack([self.reaction_system.stoichiometry_matrix[:, idx] for idx in next_reaction_ids])
 
     def simulate_one_step_direct(self, pops: torch.Tensor, times: torch.Tensor) -> None:
         """
@@ -99,14 +116,14 @@ class StochasticSimulator:
         flags = (propensities_cumsums < q).type(self.reaction_system.int_type)
         return torch.argmin(flags, dim=0)
 
-    def sample_time(self, propensity_values_sum: torch.Tensor) -> torch.Tensor:
+    def sample_time(self, propensity_values: torch.Tensor) -> torch.Tensor:
         """
         Sample next reaction time using exponential distirbution 
-        :param propensities_sum: sum of propensities 
-        :return: a sample form  Exp(1 / propensity_values_sum)
+        :param propensity_values: propensities 
+        :return: a sample form  Exp(1 / propensity_values)
         """
-        q = torch.rand(propensity_values_sum.shape[0])
-        return -q.log() / propensity_values_sum 
+        q = torch.rand(*propensity_values.shape)
+        return -q.log() / propensity_values 
 
 
 if __name__ == "__main__":

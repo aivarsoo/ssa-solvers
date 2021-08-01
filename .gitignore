@@ -1,0 +1,10 @@
+.ipynb_checkpoints/*
+examples/auto_repressor/.ipynb_checkpoints/*
+examples/mrna_srna/.ipynb_checkpoints/*
+tests/.ipynb_checkpoints/*
+examples/mrna_srna/__pycache__/*
+examples/__pycache__/*
+src/__pycache__/*
+
+
+
