@@ -1,6 +1,5 @@
 import torch 
-from src.chemical_reaction_system import BaseChemicalReactionSystem, Array
-from src.utils import is_torch_int_type
+from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem, Array
 
 cfg = {'stochastic_sim_cfg': {'checkpoint_freq': 0, 
                               'solver': 'direct'},
@@ -15,19 +14,17 @@ class TetRsRNAInTrans(BaseChemicalReactionSystem):
               'delta_mrna': 0.2482, 'delta_srna': 0.0482, 'delta_tetr': 0.0234, 'k_t': 1, 'k_rep': 1}
     _species = {'mRNA': 0, 'sRNA': 1, 'TetR' : 2} 
     
-    def __init__(self, int_type=torch.int64):
-        self.int_type = int_type  # chose to specify the type here, as for some networks it may be sufficient to use torch.int32
-        assert is_torch_int_type(int_type), "Please specify a torch int type, e.g., torch.int64"        
+    def __init__(self, int_type=torch.int64, device=torch.device("cpu")):
         self.stoichiometry_matrix = torch.tensor([
                                     [1, 0, 0, -1, -1,  0,  0], 
                                     [0, 1, 0, -1,  0, -1,  0], 
                                     [0, 0, 1,  0,  0,  0, -1] 
-                                ], dtype=self.int_type)
-        super(TetRsRNAInTrans, self).__init__()                        
+                                ], dtype=int_type, device=device)
+        super(TetRsRNAInTrans, self).__init__(int_type=int_type, device=device)                        
 
     def _propensities(self, pops: Array) -> Array:
         param1 = self.params['K2'] / self.params['volume'] / (1 + self.params['aTc'] / self.params['KD'])
-        ptet_tx_init = self.params['TX_ptet'] / (self.params['K1'] + (torch.ones(pops.shape[:-1]) + pops[..., self.species['TetR']] * param1 ) ** 2)
+        ptet_tx_init = self.params['TX_ptet'] / (self.params['K1'] + (torch.ones(pops.shape[:-1],  device=self.device) + pops[..., self.species['TetR']] * param1) ** 2)
         return [
             self.params['volume'] * ptet_tx_init, 
             self.params['volume'] * ptet_tx_init, 

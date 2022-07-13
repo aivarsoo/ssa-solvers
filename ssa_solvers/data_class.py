@@ -1,12 +1,13 @@
 import torch 
 from typing import Optional,  List
 import copy 
-from src.utils import is_torch_int_type
+from ssa_solvers.utils import is_torch_int_type
 
 class SimulationData:
-    def __init__(self, int_type=torch.int64):
+    def __init__(self, int_type=torch.int64, device=torch.device("cpu")):
         self.int_type = int_type
         assert is_torch_int_type(int_type), "Please specify a torch int type, e.g., torch.int64"
+        self.device = device 
         self.raw_times_trajectories = None 
         self.raw_pops_trajectories = None 
         self.processed_times_trajectories = None 
@@ -14,7 +15,7 @@ class SimulationData:
 
     def save(self, filename: str) -> None:     
         """
-        Save data to the disk
+        Save data to the disk.
         :param filename: file name string
         """
         torch.save({'raw_times':self.raw_times_trajectories, 
@@ -24,33 +25,34 @@ class SimulationData:
 
     def load(self, filename:str) -> None:
         """
-        Load data from the disk
+        Load data from the disk.
         :param filename: file name string
         """
         self.raw_times, self.raw_pops, self.processed_times, self.processed_pops = torch.load(filename)
 
     def add(self, pops_evolution: List, times_evolution:List) -> None:
         """  
-        Adds raw data to the class 
+        Adds raw data to the class.
         :param pops_evolution: population evolution
         :param times_evolution: time evolution
         """
         self.raw_times_trajectories = torch.stack(times_evolution, dim=-1)
-        self.raw_pops_trajectories = torch.stack(pops_evolution, dim=-1) 
+        self.raw_pops_trajectories = torch.stack(pops_evolution, dim=-1)
 
     def process_data(self, time_range: Optional[List[int]] = None) -> None:
         """
-        Processes raw data to make the time grid equidistance  
+        Processes raw data to interpolate it to the time_range. 
+        :param time_range: time grid for the interpolation if None an approriate equidistant grid is calculated
         """
         assert self.raw_pops_trajectories is not None, "Please provide data"
         if time_range is None:
-            time_range = torch.arange(0, self.raw_times_trajectories[:, -1].min())
+            time_range = torch.arange(0, self.raw_times_trajectories[:, -1].min(), device=self.device)
         n_traj, n_species = self.raw_times_trajectories.shape[0], self.raw_pops_trajectories.shape[-2]
         self.processed_times_trajectories = time_range
-        self.processed_pops_trajectories = torch.zeros((n_traj, n_species, self.processed_times_trajectories.shape[0]), dtype=self.int_type)
-        all_traj = torch.arange(n_traj)
+        self.processed_pops_trajectories = torch.zeros((n_traj, n_species, self.processed_times_trajectories.shape[0]), dtype=self.int_type, device=self.device)
+        all_traj = torch.arange(n_traj, device=self.device)
         cur_pops = copy.deepcopy(self.raw_pops_trajectories[..., 0])
-        time_idxs = torch.zeros((n_traj, ), dtype=self.int_type)
+        time_idxs = torch.zeros((n_traj, ), dtype=self.int_type, device=self.device)
         for t_idx, cur_time in enumerate(self.processed_times_trajectories):
             while (self.raw_times_trajectories[all_traj, time_idxs] < cur_time).any():
                 mask = (self.raw_times_trajectories[all_traj, time_idxs] < cur_time)   # figure out which times need updating 
@@ -70,8 +72,8 @@ class SimulationData:
         if time_range is not None or self.processed_pops_trajectories is None:
             self.process_data(time_range=time_range)
         if species_idxs is None:
-            species_idxs = torch.arange(0, self.processed_pops_trajectories.shape[1]).type(torch.int64)
-        return torch.mean(self.processed_pops_trajectories[:, species_idxs, :].type(torch.float64), dim=0)
+            species_idxs = torch.arange(0, self.processed_pops_trajectories.shape[1], device=self.device).type(torch.int64)
+        return torch.mean(self.processed_pops_trajectories[:, species_idxs, :].type(torch.float64), dim=0).cpu().numpy()
 
     def std(self, species_idxs: Optional[List[int]] = None, time_range: Optional[List[int]] = None) -> torch.Tensor:
         """
@@ -85,8 +87,8 @@ class SimulationData:
         if time_range is not None or self.processed_pops_trajectories is None:
             self.process_data(time_range=time_range)
         if species_idxs is None:
-            species_idxs = torch.arange(0, self.processed_pops_trajectories.shape[1]).type(torch.int64)
-        return torch.std(self.processed_pops_trajectories[:, species_idxs, :].type(torch.float64), dim=0)
+            species_idxs = torch.arange(0, self.processed_pops_trajectories.shape[1], device=self.device).type(torch.int64)
+        return torch.std(self.processed_pops_trajectories[:, species_idxs, :].type(torch.float64), dim=0).cpu().numpy()
 
     def coefficient_of_variation(self, species_idxs: Optional[List[int]] = None, time_range: Optional[List[int]] = None) -> torch.Tensor:
         """
