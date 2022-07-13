@@ -9,7 +9,8 @@ setup(
     author_email='aivsoo10@gmail.com',
     license='MIT',
     packages=['ssa_solvers'],
-    install_requires=['torch>=1.8.2',
+    install_requires=['torch', # tested on torch=1.8.2  and torch=1.12.0
+                      'jupyterlab',
                       'matplotlib',
                       'line-profiler', 
                       'scipy',

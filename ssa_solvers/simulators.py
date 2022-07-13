@@ -1,8 +1,6 @@
 import numpy as np
 import torch 
-import copy 
-from typing import Any, Dict
-import torch.nn.functional as F
+from typing import Dict
 import scipy.integrate as integrate
 
 class Simulator:
@@ -49,21 +47,21 @@ class StochasticSimulator(Simulator):
         assert pops.shape[1] == self.reaction_system.n_species
         pops = torch.repeat_interleave(pops, n_trajectories, dim=0) 
         times = torch.zeros((n_trajectories, ), device=self.device)
-        pops_evolution = [pops] #[copy.deepcopy(pops)]
-        times_evolution = [times] #[copy.deepcopy(times)]
+        pops_evolution = [pops] 
+        times_evolution = [times] 
         iter_idx = 0
         while times.min() < end_time:
             iter_idx += 1
             try: # pressing ctrl+c will add data to the data class and break prematurely 
                 pops, times = self.simulate_one_step(pops=pops, times=times) 
-                pops_evolution.append(pops) #copy.deepcopy(pops))
-                times_evolution.append(times) #copy.deepcopy(times))
+                pops_evolution.append(pops) 
+                times_evolution.append(times) 
                 # saving a checkpoint 
                 if self.checkpoint_freq and iter_idx % self.checkpoint_freq:
                     self.data_set.add(pops_evolution, times_evolution)
             except KeyboardInterrupt:
                 break
-        # self.data_set.add(pops_evolution, times_evolution)    
+        self.data_set.add(pops_evolution, times_evolution)    
         
 
     def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor) -> None:
@@ -90,11 +88,10 @@ class StochasticSimulator(Simulator):
         cur_propensities = self.reaction_system.propensities(pops)
         # Sample next reactions and reaction times
         possible_times = self.sample_time(cur_propensities)
-        next_times, next_reaction_ids = torch.min(possible_times, dim=0)
         # Update time and pops
-        times += next_times
-        pops += torch.index_select(self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
-        return pops, times
+        next_times, next_reaction_ids = torch.min(possible_times, dim=0)
+        next_pops = torch.index_select(self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
+        return pops + next_pops, times + next_times
 
     def simulate_one_step_direct(self, pops: torch.Tensor, times: torch.Tensor) -> None:
         """
@@ -106,13 +103,14 @@ class StochasticSimulator(Simulator):
         cur_propensities = self.reaction_system.propensities(pops)
         # Sample next reaction times
         propensities_sum = cur_propensities.sum(dim=0)
-        times += self.sample_time(propensities_sum)
+        next_times = self.sample_time(propensities_sum)
         # Sample next reactions
         cur_propensities /= propensities_sum  # normalizing propensities      
         next_reaction_ids = self.sample_reaction(cur_propensities)
         # Update pops
-        pops += torch.index_select(self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
-        return pops, times
+        # next_pops = torch.vstack([self.reaction_system.stoichiometry_matrix[:, idx] for idx in next_reaction_ids])
+        next_pops = torch.index_select(self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
+        return pops + next_pops, times + next_times
 
     def sample_reaction(self, propensity_values:torch.Tensor) -> torch.Tensor:
         """
@@ -123,7 +121,7 @@ class StochasticSimulator(Simulator):
         n_traj = propensity_values.shape[-1]
         q = torch.rand(n_traj, device=self.device)
         propensities_cumsums = torch.cumsum(propensity_values, dim=0)
-        flags = (propensities_cumsums < q).type(self.reaction_system.int_type)
+        flags = (propensities_cumsums < q).type(torch.int64)
         return torch.argmin(flags, dim=0)
 
     def sample_time(self, propensity_values: torch.Tensor) -> torch.Tensor:

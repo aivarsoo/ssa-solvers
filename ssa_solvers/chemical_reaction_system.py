@@ -1,18 +1,15 @@
 import torch
 import numpy as np
 import copy
-from ssa_solvers.utils import is_torch_int_type
 from ssa_solvers.utils import is_matrix_int_type, is_tensor_int_type
-from typing import Union
-Array = Union[torch.Tensor, np.ndarray]
+from typing import Union, List
+# Array = Union[torch.Tensor, np.ndarray]
 
 class BaseChemicalReactionSystem:
     """
     Base class for chemical reaction systems 
     """
-    def __init__(self, int_type=torch.int64, device=torch.device("cpu")):
-        self.int_type = int_type  # chose to specify the type here, as for some networks it may be sufficient to use torch.int32
-        assert is_torch_int_type(int_type), "Please specify a torch int type, e.g., torch.int64"        
+    def __init__(self, device=torch.device("cpu")):
         self.device = device
         assert len(self._stoichiometry_matrix.shape) == 2, "Stoichiometry_matrix should be a matrix (2-d tensor)!"
         assert is_matrix_int_type(self._stoichiometry_matrix) or is_tensor_int_type(self._stoichiometry_matrix), "Stochimetry matrix is a matrix of integers!"
@@ -23,17 +20,21 @@ class BaseChemicalReactionSystem:
         return torch.vstack(self._propensities(pops))
 
     def ode_fun(self, time: int, pops: np.ndarray) -> np.ndarray:
-        return self._stoichiometry_matrix_np @ np.vstack(self._propensities(pops)).squeeze()
+        return self._stoichiometry_matrix_np @ np.vstack(self._propensities_np(pops)).squeeze()
 
     def ode_fun_jac(self, time: int, pops: np.ndarray) -> np.ndarray:
         return self._jacobian(pops)
 
-    def _jacobian(self, pops: Array):
-        "Returns the Jacobian of the vector field."
+    def _propensities(self, pops: torch.Tensor) -> List[np.ndarray]:
+        "Returns the vector of propensities for torch."
         raise NotImplementedError
 
-    def _propensities(self, pops: Array):
-        "Returns the vector of propensities."
+    def _propensities_np(self, pops: np.ndarray) -> List[np.ndarray]:
+        "Returns the vector of propensities for numpy."
+        raise NotImplementedError
+
+    def _jacobian(self, pops: np.ndarray):
+        "Returns the Jacobian of the vector field."
         raise NotImplementedError
 
     @property

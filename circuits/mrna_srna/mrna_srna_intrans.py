@@ -1,6 +1,6 @@
 import torch 
 import numpy as np
-from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem, Array
+from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
 from typing import List
 
 cfg = {'stochastic_sim_cfg': {'checkpoint_freq': 0, 
@@ -15,22 +15,22 @@ class mRNAsRNAInTrans(BaseChemicalReactionSystem):
                 'k_t': 1.0, 'k_rep': 0.3} 
     _species = {'mRNA': 0, 'sRNA' : 1, 'Prot' : 2} 
     
-    def __init__(self, int_type=torch.int64, device=torch.device("cpu")):
+    def __init__(self,  device=torch.device("cpu")):
         """
-        :param int_type: specifies the integer type 
+        :param device: torch device for simulations
         """
         self.stoichiometry_matrix = torch.tensor([
                                     [1, 0,  0, -1, -1,  0,  0], 
                                     [0, 1,  0, -1,  0, -1,  0],
                                     [0, 0 , 1,  0,  0,  0, -1] 
-                                ], dtype=int_type, device=device)
-        super(mRNAsRNAInTrans, self).__init__(int_type=int_type, device=device)      
+                                ], dtype=torch.int64, device=device)
+        super(mRNAsRNAInTrans, self).__init__(device=device)      
                                 
-    def _propensities(self, pops: Array) -> List[Array]:
+    def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
         """
         Composes a list of propensity functions  
-        :params pops: current population (either an np.ndarray or a torch.Tensor)
-        :return: list of propensities (either an np.ndarray or a torch.Tensor)
+        :params pops: current population 
+        :return: list of propensities 
         """
         return [
             self.params['volume'] * self.params['beta_m'] * torch.ones(pops.shape[:-1], device=self.device), 
@@ -42,12 +42,21 @@ class mRNAsRNAInTrans(BaseChemicalReactionSystem):
             self.params['delta_p'] * pops[..., self.species['Prot']], 
         ]
 
-    def _jacobian(self, pops: Array) -> List[Array]:
+    def _propensities_np(self, pops: np.ndarray) -> List[np.ndarray]:
         """
-        Returns the Jacobian of the vector field for the ODE computations 
-        :param pops: current population 
+        Composes a list of propensity functions in numpy (hardcoded for speed)
+        :params pops: current population
+        :return: list of propensities
         """
-        return NotImplemented
+        return [
+            self.params['volume'] * self.params['beta_m'] * np.ones(pops.shape[:-1]), 
+            self.params['volume'] * self.params['beta_s'] * np.ones(pops.shape[:-1]), 
+            self.params['k_t'] * pops[..., self.species['mRNA']], 
+            self.params['k_rep'] / self.params['volume'] * pops[..., self.species['mRNA']] * pops[..., self.species['sRNA']],     
+            self.params['delta_m'] * pops[..., self.species['mRNA']], 
+            self.params['delta_s'] * pops[..., self.species['sRNA']], 
+            self.params['delta_p'] * pops[..., self.species['Prot']], 
+        ]
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
+import numpy as np
 import torch 
-from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem, Array
-
+from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
+from typing import List
 
 
 cfg = {'stochastic_sim_cfg': {'checkpoint_freq': 0, 
@@ -16,14 +17,14 @@ class TetRsRNAInCis(BaseChemicalReactionSystem):
               'delta_fmrna': 0.0482,  'delta_tetr': 0.0234, 'k_t': 1, 'k_rep': 1}
     _species = {'fmRNA': 0, 'TetR' : 1} 
     
-    def __init__(self, int_type=torch.int64, device=torch.device("cpu")):
+    def __init__(self,  device=torch.device("cpu")):
         self.stoichiometry_matrix = torch.tensor([
                                     [1, 0, -1, -1,  0], 
                                     [0, 1,  0,  0, -1] 
-                                ], dtype=int_type, device=device)
-        super(TetRsRNAInCis, self).__init__(int_type=int_type, device=device)                        
+                                ], dtype=torch.int64, device=device)
+        super(TetRsRNAInCis, self).__init__(device=device)                        
 
-    def _propensities(self, pops: Array) -> Array:
+    def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
         param1 = self.params['K2'] / self.params['volume'] / (1 + self.params['aTc'] / self.params['KD'])
         ptet_tx_init = self.params['TX_ptet'] / (self.params['K1'] + (1 + pops[..., self.species['TetR']] * param1 ) ** 2)
         return [
@@ -34,6 +35,8 @@ class TetRsRNAInCis(BaseChemicalReactionSystem):
             self.params['delta_tetr'] * pops[..., self.species['TetR']], 
         ]
 
+    def _propensities_np(self, pops: np.ndarray) -> List[np.ndarray]:
+        return self._propensities(pops)
 
 if __name__ == "__main__":
     system = TetRsRNAInCis()

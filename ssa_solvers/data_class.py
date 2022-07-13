@@ -1,12 +1,9 @@
 import torch 
 from typing import Optional,  List
 import copy 
-from ssa_solvers.utils import is_torch_int_type
 
 class SimulationData:
-    def __init__(self, int_type=torch.int64, device=torch.device("cpu")):
-        self.int_type = int_type
-        assert is_torch_int_type(int_type), "Please specify a torch int type, e.g., torch.int64"
+    def __init__(self, device=torch.device("cpu")):
         self.device = device 
         self.raw_times_trajectories = None 
         self.raw_pops_trajectories = None 
@@ -49,10 +46,10 @@ class SimulationData:
             time_range = torch.arange(0, self.raw_times_trajectories[:, -1].min(), device=self.device)
         n_traj, n_species = self.raw_times_trajectories.shape[0], self.raw_pops_trajectories.shape[-2]
         self.processed_times_trajectories = time_range
-        self.processed_pops_trajectories = torch.zeros((n_traj, n_species, self.processed_times_trajectories.shape[0]), dtype=self.int_type, device=self.device)
+        self.processed_pops_trajectories = torch.zeros((n_traj, n_species, self.processed_times_trajectories.shape[0]), dtype=torch.int64, device=self.device)
         all_traj = torch.arange(n_traj, device=self.device)
         cur_pops = copy.deepcopy(self.raw_pops_trajectories[..., 0])
-        time_idxs = torch.zeros((n_traj, ), dtype=self.int_type, device=self.device)
+        time_idxs = torch.zeros((n_traj, ), dtype=torch.int64, device=self.device)
         for t_idx, cur_time in enumerate(self.processed_times_trajectories):
             while (self.raw_times_trajectories[all_traj, time_idxs] < cur_time).any():
                 mask = (self.raw_times_trajectories[all_traj, time_idxs] < cur_time)   # figure out which times need updating 
