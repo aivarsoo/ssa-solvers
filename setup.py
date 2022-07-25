@@ -10,6 +10,7 @@ setup(
     license='MIT',
     packages=['ssa_solvers'],
     install_requires=['torch', # tested on torch=1.8.2  and torch=1.12.0
+                      'einops',
                       'jupyterlab',
                       'matplotlib',
                       'line-profiler', 

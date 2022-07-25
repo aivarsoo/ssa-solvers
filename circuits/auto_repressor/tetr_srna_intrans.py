@@ -3,7 +3,10 @@ import numpy as np
 from typing import List
 from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
 
-cfg = {'stochastic_sim_cfg': {'checkpoint_freq': 0, 
+cfg = {'stochastic_sim_cfg': {'checkpoint_freq': 1, 
+                              'save_to_file': True,
+                              'trajectories_per_file': 50000,  
+                              'path':None,  
                               'solver': 'direct'},
        'ode_sim_cfg': {'solver': 'RK23',
                        'atol': 1e-4, 
