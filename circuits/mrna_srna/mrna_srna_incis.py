@@ -1,6 +1,6 @@
 import torch 
 import numpy as np
-from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem, Array
+from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
 from typing import List
 
 cfg = {'stochastic_sim_cfg': {'checkpoint_freq': 1, 

@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-import copy
 from ssa_solvers.utils import is_matrix_int_type, is_tensor_int_type
 from typing import Union, List
 # Array = Union[torch.Tensor, np.ndarray]
@@ -53,7 +52,7 @@ class BaseChemicalReactionSystem:
     def params(self, params):
         for key in params.keys():
             assert key in self.params_names, "No such parameter in the system!"
-            self._params[key] = copy.deepcopy(params[key])
+            self._params[key] = params[key]
     
     @property
     def species(self):

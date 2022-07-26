@@ -30,16 +30,31 @@ class StochasticSimulator(Simulator):
                 reaction_system,
                 cfg:Dict,
                 device=torch.device("cpu")) -> None:
+        self.cfg = cfg
+        self.device=device
+        self.checkpoint_freq = self.cfg['stochastic_sim_cfg']['checkpoint_freq']
+        self.solver = self.cfg['stochastic_sim_cfg']['solver']
         self.reaction_system = reaction_system
         self.data_set = SimulationData(
             device=device, 
-            save_to_file=cfg['stochastic_sim_cfg']['save_to_file'],
-            trajectories_per_file=cfg['stochastic_sim_cfg']['trajectories_per_file'],
-            path=cfg['stochastic_sim_cfg']['path']
+            save_to_file=self.cfg['stochastic_sim_cfg']['save_to_file'],
+            trajectories_per_file=self.cfg['stochastic_sim_cfg']['trajectories_per_file'],
+            path=self.cfg['stochastic_sim_cfg']['path']
             )
-        self.device=device
-        self.checkpoint_freq = cfg['stochastic_sim_cfg']['checkpoint_freq']
-        self.solver = cfg['stochastic_sim_cfg']['solver']
+
+    def set_reaction_params(self, params:Dict):
+        """
+        Set new reaction parameters and re-initialize the data set
+        :param params: parameters for the reaction network
+        """
+        self.reaction_system.params = params 
+        self.data_set = SimulationData(
+            device=self.device, 
+            save_to_file=self.cfg['stochastic_sim_cfg']['save_to_file'],
+            trajectories_per_file=self.cfg['stochastic_sim_cfg']['trajectories_per_file'],
+            path=self.cfg['stochastic_sim_cfg']['path']
+            )
+
 
     def simulate(self, init_pops: torch.Tensor, end_time:int, n_trajectories: int) -> None:
         """

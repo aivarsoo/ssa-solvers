@@ -16,12 +16,12 @@ from ssa_solvers.data_class import SimulationData
 if __name__ == "__main__":
     end_time = 300
     n_steps = 150
-    n_traj = 50000
+    n_traj = 10000
     time_grid = np.arange(0, end_time, end_time / n_steps)
 
     from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis, cfg
 
-    cfg['stochastic_sim_cfg']['save_to_file'] = True
+    cfg['stochastic_sim_cfg']['save_to_file'] = False
     cfg['stochastic_sim_cfg']['trajectories_per_file'] = 50000
 
     ode_simulator = DeterministicSimulator(
@@ -40,10 +40,9 @@ if __name__ == "__main__":
     ode_res_incis = ode_simulator.simulate(init_pops=np.zeros((reaction_system_incis.n_species,)), time_grid=time_grid)
     ssa_simulator_incis.simulate(init_pops=init_pops, end_time=end_time, n_trajectories=n_traj)
     
-    print("computing mean")
-    means_incis = ssa_simulator_incis.data_set.mean(time_range=time_grid)
-    print("computing std")
-    stds_incis = ssa_simulator_incis.data_set.std(time_range=time_grid)
+    print("computing mean and std")
+    time_grid = np.array([time_grid[-1]])
+    means_incis, stds_incis = ssa_simulator_incis.data_set.mean_and_std(time_grid=time_grid)
 
     species_idx_incis = 1
     plt.figure()
