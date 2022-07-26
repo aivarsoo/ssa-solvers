@@ -7,14 +7,15 @@ import einops
 from datetime import datetime
 
 class SimulationData:
-    def __init__(self, device=torch.device("cpu"), save_to_file:bool=False, trajectories_per_file:int=20000, path:str=None):
+    def __init__(self, n_species:int, device=torch.device("cpu"), save_to_file:bool=False, trajectories_per_file:int=20000, path:str="./logs/"):
         self.device = device 
         self.end_time = None
+
+        self.n_species = n_species
+        self.species_idx = [str(idx) for idx in range(self.n_species)]        
         self.save_to_file = save_to_file
-        # saving to file
-        if path is None:
-            path = "./logs/"
         if save_to_file:
+            # saving to file
             self.trajectories_per_file = trajectories_per_file
             timestamp = datetime.now()
             if not os.path.exists(path):
@@ -63,7 +64,7 @@ class SimulationData:
     def process_data(self, time_grid: Optional[List[int]] = None) -> None:
         """
         Processes raw data to interpolate it to the time_range. 
-        :param time_range: time grid for the interpolation if None an approriate equidistant grid is calculated
+        :param time_grid: time grid for the interpolation if None an approriate equidistant grid is calculated
         """
         if self.save_to_file:
             assert not os.path.exists(os.path.join(self.path, self.raw_data_filename)), "Please provide data"
@@ -71,25 +72,21 @@ class SimulationData:
                 time_grid = np.arange(0, self.end_time)                
             files = os.listdir(self.raw_data_path)
             for file_idx in range(len(files)):
-                self._process_one_file(time_grid, pd.read_csv(os.path.join(self.raw_data_path, files[file_idx])), write_header=file_idx==0)
+                filename = os.path.join(self.raw_data_path, files[file_idx])
+                runs_ids = np.unique(pd.read_csv(filename, usecols=["run_id"]))
+                runs_ids.sort()
+                raw_times_trajectories = einops.rearrange(pd.read_csv(filename, usecols=["time"]).values, "(t h) m -> h (t m) ", h=runs_ids.shape[0])        
+                raw_pops_trajectories = einops.rearrange(pd.read_csv(filename, usecols=self.species_idx).values, "(t h) s -> h s t", h=runs_ids.shape[0], s=self.n_species)
+                self._process_batch_trajecories(raw_times_trajectories, raw_pops_trajectories, time_grid, write_header=file_idx==0, runs_ids=runs_ids)   
         else:  
             assert self.raw_pops_trajectories is not None, "Please provide data"
+            assert self.n_species == self.raw_pops_trajectories.shape[-2]
             if time_grid is None:
                 time_grid = torch.arange(0, self.end_time, device=self.device)
             else:
-                time_grid = torch.Tensor(time_grid).to(device=self.device)                
-            self.processed_times_trajectories = time_grid
-            n_traj, n_species = self.raw_times_trajectories.shape[0], self.raw_pops_trajectories.shape[-2]
-            self.processed_pops_trajectories = torch.zeros((n_traj, n_species, self.processed_times_trajectories.shape[0]), dtype=torch.int64, device=self.device)
-            all_traj = torch.arange(n_traj, device=self.device)
-            cur_pops = self.raw_pops_trajectories[..., 0] 
-            time_idxs = torch.zeros((n_traj, ), dtype=torch.int64, device=self.device)
-            for t_idx, cur_time in enumerate(self.processed_times_trajectories):
-                while (self.raw_times_trajectories[all_traj, time_idxs] < cur_time).any():
-                    mask = (self.raw_times_trajectories[all_traj, time_idxs] < cur_time)   # figure out which times need updating 
-                    cur_pops[mask, :] = self.raw_pops_trajectories[all_traj[mask], :, time_idxs[mask]] # update pops 
-                    time_idxs += mask   # update times 
-                self.processed_pops_trajectories[all_traj, ..., t_idx] = cur_pops  
+                time_grid = torch.Tensor(time_grid).to(device=self.device)    
+            self._process_batch_trajecories(self.raw_times_trajectories, self.raw_pops_trajectories, time_grid)                
+
 
     def mean_and_std(self,  time_grid: Optional[List[int]] = None) -> torch.Tensor:
         """
@@ -102,7 +99,16 @@ class SimulationData:
                 self.process_data(time_grid=time_grid)
             else:
                 print("Found existing processed data. Using these data")
-            return self._compute_stats_from_file()
+            files = os.listdir(self.processed_data_path)
+            time_length = len(files)            
+            _mean = np.zeros((self.n_species, time_length))
+            _std = np.zeros((self.n_species, time_length))
+            for file in files:
+                t_idx = int(file.split("_")[0])
+                df = pd.read_csv(os.path.join(self.processed_data_path, file),usecols=self.species_idx)
+                _mean[:, t_idx] = df.mean().values
+                _std[:, t_idx] = df.std().values 
+            return _mean, _std                
         else:
             assert self.raw_pops_trajectories is not None, "Please get the data before computing statistics"
             assert not (time_grid is None and self.processed_pops_trajectories is None), "Specify time_range as no data was processed"
@@ -112,52 +118,37 @@ class SimulationData:
             return torch.mean(float_data, dim=0).cpu().numpy(), torch.std(float_data, dim=0).cpu().numpy()
 
     # helper files 
-    def _process_one_file(self, time_range:np.ndarray, df:pd.DataFrame, write_header:bool) -> None:
-        """"
-        processing raw data from one file 
-        :param time_range:
-        :param df:
-        :param write_header:
+    def _process_batch_trajecories(self, raw_times_trajectories, raw_pops_trajectories, time_grid, write_header:bool=False, runs_ids:np.ndarray=None):
         """
-        species_idx = df.columns[:-2]
-        runs_ids = np.arange(df["run_id"].min(), df["run_id"].max()+1)
-        n_traj, n_species = runs_ids.shape[0], len(species_idx)
-        all_traj = np.arange(n_traj)
-        raw_times_trajectories = einops.rearrange(df["time"].values, "(t h) -> h t", h=n_traj)
-        raw_pops_trajectories = einops.rearrange(df[species_idx].values, "(t h) s -> h s t", h=n_traj, s=n_species)
-        del df 
-        cur_pops = raw_pops_trajectories[..., 0]
-        time_idxs = np.zeros((n_traj, ), dtype=np.int64)             
-        for t_idx, cur_time in enumerate(time_range):
-            while (raw_times_trajectories[all_traj, time_idxs] < cur_time).any():
-                mask = (raw_times_trajectories[all_traj, time_idxs] < cur_time)   # figure out which times need updating 
+        Process a batch of trajectories to get the values on a specified time grid
+        """
+        n_traj  = raw_times_trajectories.shape[0]
+        if self.save_to_file:
+            all_traj = np.arange(n_traj)
+            time_idxs = np.zeros((n_traj, ), dtype=np.int64)    
+        else:
+            self.processed_times_trajectories = time_grid
+            self.processed_pops_trajectories = torch.zeros((n_traj, self.n_species, time_grid.shape[0]), dtype=torch.int64, device=self.device)
+            time_idxs = torch.zeros((n_traj, ), dtype=torch.int64, device=self.device)
+            all_traj = torch.arange(n_traj, device=self.device)
+        cur_pops = raw_pops_trajectories[..., 0] 
+        for t_idx, cur_time in enumerate(time_grid):
+            mask = (raw_times_trajectories[all_traj, time_idxs] <= cur_time)   # figure out which times need updating 
+            while mask.any():
                 cur_pops[mask, :] = raw_pops_trajectories[all_traj[mask], :, time_idxs[mask]] # update pops 
                 time_idxs += mask   # update times 
-            self._save_to_csv(
-                pops=cur_pops,
-                times=cur_time*np.ones((n_traj,)),
-                run_ids=runs_ids,
-                filename=os.path.join(
-                        self.processed_data_path,
-                        str(t_idx) + "_" + self.processed_data_filename),
-                write_header=write_header)
-
-    def _compute_stats_from_file(self) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Compute statistics of the data
-        """
-        files = os.listdir(self.processed_data_path)
-        df = pd.read_csv(os.path.join(self.processed_data_path, files[0]))
-        species_idx = df.columns[:-2]
-        n_species, time_length = len(species_idx), len(files)
-        _mean = np.zeros((n_species, time_length))
-        _std = np.zeros((n_species, time_length))
-        for file in files:
-            t_idx = int(file.split("_")[0])
-            df = pd.read_csv(os.path.join(self.processed_data_path, file))[species_idx]
-            _mean[:, t_idx] = df.mean().values
-            _std[:, t_idx] = df.std().values 
-        return _mean, _std
+                mask = (raw_times_trajectories[all_traj, time_idxs] <= cur_time)   # figure out which times need updating    
+            if self.save_to_file:
+                self._save_to_csv(
+                    pops=cur_pops,
+                    times=cur_time*np.ones((n_traj,)),
+                    run_ids=runs_ids,
+                    filename=os.path.join(
+                            self.processed_data_path,
+                            str(t_idx) + "_" + self.processed_data_filename),
+                    write_header=write_header)
+            else:    
+                self.processed_pops_trajectories[all_traj, ..., t_idx] = cur_pops  
 
     def _save_to_csv(self, pops:np.ndarray, times:np.ndarray, run_ids:np.ndarray, filename:str, write_header:bool=False) -> None:
         """

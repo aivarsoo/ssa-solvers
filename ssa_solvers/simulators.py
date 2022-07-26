@@ -36,6 +36,7 @@ class StochasticSimulator(Simulator):
         self.solver = self.cfg['stochastic_sim_cfg']['solver']
         self.reaction_system = reaction_system
         self.data_set = SimulationData(
+            n_species=self.reaction_system.n_species,
             device=device, 
             save_to_file=self.cfg['stochastic_sim_cfg']['save_to_file'],
             trajectories_per_file=self.cfg['stochastic_sim_cfg']['trajectories_per_file'],
