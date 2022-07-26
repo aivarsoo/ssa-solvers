@@ -38,10 +38,7 @@ class StochasticSimulator(Simulator):
         self.data_set = SimulationData(
             n_species=self.reaction_system.n_species,
             device=device, 
-            save_to_file=self.cfg['stochastic_sim_cfg']['save_to_file'],
-            trajectories_per_file=self.cfg['stochastic_sim_cfg']['trajectories_per_file'],
-            path=self.cfg['stochastic_sim_cfg']['path']
-            )
+            cfg=self.cfg)    
 
     def set_reaction_params(self, params:Dict):
         """
@@ -51,9 +48,7 @@ class StochasticSimulator(Simulator):
         self.reaction_system.params = params 
         self.data_set = SimulationData(
             device=self.device, 
-            save_to_file=self.cfg['stochastic_sim_cfg']['save_to_file'],
-            trajectories_per_file=self.cfg['stochastic_sim_cfg']['trajectories_per_file'],
-            path=self.cfg['stochastic_sim_cfg']['path']
+            cfg=self.cfg
             )
 
 

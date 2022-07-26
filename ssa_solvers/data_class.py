@@ -1,33 +1,37 @@
 import torch 
-from typing import Optional, List, Tuple
+from typing import Optional, List, Dict, Tuple
 import pandas as pd
 import numpy as np
 import os
 import einops 
 from datetime import datetime
+import json 
 
 class SimulationData:
-    def __init__(self, n_species:int, device=torch.device("cpu"), save_to_file:bool=False, trajectories_per_file:int=20000, path:str="./logs/"):
+    def __init__(self, n_species:int, device=torch.device("cpu"), cfg:Dict=None):
         self.device = device 
         self.end_time = None
 
         self.n_species = n_species
         self.species_idx = [str(idx) for idx in range(self.n_species)]        
-        self.save_to_file = save_to_file
-        if save_to_file:
+        self.save_to_file = cfg['stochastic_sim_cfg']['save_to_file']
+        path=cfg['stochastic_sim_cfg']['path']
+        if self.save_to_file:
             # saving to file
-            self.trajectories_per_file = trajectories_per_file
+            self.trajectories_per_file = cfg['stochastic_sim_cfg']['trajectories_per_file']
             timestamp = datetime.now()
             if not os.path.exists(path):
                 os.mkdir(path)
-            self.path = os.path.join(path, str(timestamp)) #  + "_" + str(np.random.randint(1000))
+            self.path = os.path.join(path, str(timestamp)) 
             os.mkdir(self.path)
             self.raw_data_path = os.path.join(self.path, "raw")
             os.mkdir(self.raw_data_path)
             self.processed_data_path = os.path.join(self.path, "processed")
             os.mkdir(self.processed_data_path)
             self.raw_data_filename = "raw_data.csv"
-            self.processed_data_filename = "processed_data.csv"
+            self.processed_data_filename = "processed_data.csv"            
+            with open(os.path.join(self.path, 'config.json'), 'w') as fp:
+                json.dump(cfg, fp)
         else:
             # keeping in memory 
             self.raw_times_trajectories = None 
@@ -77,7 +81,7 @@ class SimulationData:
                 runs_ids.sort()
                 raw_times_trajectories = einops.rearrange(pd.read_csv(filename, usecols=["time"]).values, "(t h) m -> h (t m) ", h=runs_ids.shape[0])        
                 raw_pops_trajectories = einops.rearrange(pd.read_csv(filename, usecols=self.species_idx).values, "(t h) s -> h s t", h=runs_ids.shape[0], s=self.n_species)
-                self._process_batch_trajecories(raw_times_trajectories, raw_pops_trajectories, time_grid, write_header=file_idx==0, runs_ids=runs_ids)   
+                self._process_batch_trajectories(raw_times_trajectories, raw_pops_trajectories, time_grid, write_header=file_idx==0, runs_ids=runs_ids)   
         else:  
             assert self.raw_pops_trajectories is not None, "Please provide data"
             assert self.n_species == self.raw_pops_trajectories.shape[-2]
@@ -85,8 +89,7 @@ class SimulationData:
                 time_grid = torch.arange(0, self.end_time, device=self.device)
             else:
                 time_grid = torch.Tensor(time_grid).to(device=self.device)    
-            self._process_batch_trajecories(self.raw_times_trajectories, self.raw_pops_trajectories, time_grid)                
-
+            self._process_batch_trajectories(self.raw_times_trajectories, self.raw_pops_trajectories, time_grid)                
 
     def mean_and_std(self,  time_grid: Optional[List[int]] = None) -> torch.Tensor:
         """
@@ -117,8 +120,13 @@ class SimulationData:
             float_data = self.processed_pops_trajectories.float()                
             return torch.mean(float_data, dim=0).cpu().numpy(), torch.std(float_data, dim=0).cpu().numpy()
 
+    def clear_processed_data(self):
+        files = os.listdir(self.processed_data_path)
+        for file_idx in range(len(files)):
+            os.remove(os.path.join(self.processed_data_path, files[file_idx]))            
+
     # helper files 
-    def _process_batch_trajecories(self, raw_times_trajectories, raw_pops_trajectories, time_grid, write_header:bool=False, runs_ids:np.ndarray=None):
+    def _process_batch_trajectories(self, raw_times_trajectories, raw_pops_trajectories, time_grid, write_header:bool=False, runs_ids:np.ndarray=None):
         """
         Process a batch of trajectories to get the values on a specified time grid
         """

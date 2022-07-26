@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis, cfg
 
-    cfg['stochastic_sim_cfg']['save_to_file'] = False 
+    cfg['stochastic_sim_cfg']['save_to_file'] = True 
     cfg['stochastic_sim_cfg']['trajectories_per_file'] = 50000
 
     ode_simulator = DeterministicSimulator(

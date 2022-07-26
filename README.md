@@ -20,7 +20,7 @@ TBD
 ## TODO:
 
     1. Make tests 
-    2. improve _process_one_file function. Requires too much memory
+    2. still think about data processing. is it most efficient?
 
 
 
