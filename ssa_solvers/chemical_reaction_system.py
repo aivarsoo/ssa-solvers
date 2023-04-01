@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from ssa_solvers.utils import is_matrix_int_type, is_tensor_int_type
-from typing import Union, List
+from typing import List
 # Array = Union[torch.Tensor, np.ndarray]
 
 class BaseChemicalReactionSystem:

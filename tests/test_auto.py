@@ -1,8 +1,5 @@
 import numpy as np
 import torch
-import torch.nn.functional as F
-import scipy.stats as st
-import scipy.interpolate as interpolate
 import matplotlib.pyplot as plt
 
 torch.set_default_tensor_type(torch.FloatTensor)

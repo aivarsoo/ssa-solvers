@@ -1,5 +1,5 @@
 import torch 
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict
 import pandas as pd
 import numpy as np
 import os
@@ -70,35 +70,34 @@ class SimulationData:
         Processes raw data to interpolate it to the time_range. 
         :param time_grid: time grid for the interpolation if None an approriate equidistant grid is calculated
         """
+        if time_grid is None:
+            time_grid = np.arange(0, self.end_time)                
         if self.save_to_file:
             assert not os.path.exists(os.path.join(self.path, self.raw_data_filename)), "Please provide data"
-            if time_grid is None:
-                time_grid = np.arange(0, self.end_time)                
             files = os.listdir(self.raw_data_path)
             for file_idx in range(len(files)):
                 filename = os.path.join(self.raw_data_path, files[file_idx])
-                runs_ids = np.unique(pd.read_csv(filename, usecols=["run_id"]))
-                runs_ids.sort()
+                runs_ids = np.unique(pd.read_csv(filename, usecols=["run_id"])); runs_ids.sort()
                 raw_times_trajectories = einops.rearrange(pd.read_csv(filename, usecols=["time"]).values, "(t h) m -> h (t m) ", h=runs_ids.shape[0])        
                 raw_pops_trajectories = einops.rearrange(pd.read_csv(filename, usecols=self.species_idx).values, "(t h) s -> h s t", h=runs_ids.shape[0], s=self.n_species)
                 self._process_batch_trajectories(raw_times_trajectories, raw_pops_trajectories, time_grid, write_header=file_idx==0, runs_ids=runs_ids)   
         else:  
             assert self.raw_pops_trajectories is not None, "Please provide data"
             assert self.n_species == self.raw_pops_trajectories.shape[-2]
-            if time_grid is None:
-                time_grid = torch.arange(0, self.end_time, device=self.device)
-            else:
-                time_grid = torch.Tensor(time_grid).to(device=self.device)    
+            time_grid = torch.Tensor(time_grid).to(device=self.device)    
             self._process_batch_trajectories(self.raw_times_trajectories, self.raw_pops_trajectories, time_grid)                
 
     def mean_and_std(self,  time_grid: Optional[List[int]] = None) -> torch.Tensor:
         """
         Computes means of the species of the species numbers 
         :param time_range: time indexes for which we compute the statistic, 
-        :return: mean of the pops with species_idxs, if time_range is empty then returns the last processed 
+        :return: mean and variance of the pops
         """
         if self.save_to_file:
-            if not os.listdir(self.processed_data_path): # check if the data was processed (check files?)
+            if time_grid is not None: # if time grid is given re-processing data
+                self.clear_processed_data()
+                self.process_data(time_grid=time_grid)    
+            elif not os.listdir(self.processed_data_path): # check if the data was processed (check files?)
                 self.process_data(time_grid=time_grid)
             else:
                 print("Found existing processed data. Using these data")
@@ -121,6 +120,9 @@ class SimulationData:
             return torch.mean(float_data, dim=0).cpu().numpy(), torch.std(float_data, dim=0).cpu().numpy()
 
     def clear_processed_data(self):
+        """
+        Deleting all processed data
+        """
         files = os.listdir(self.processed_data_path)
         for file_idx in range(len(files)):
             os.remove(os.path.join(self.processed_data_path, files[file_idx]))            
@@ -131,7 +133,7 @@ class SimulationData:
         Process a batch of trajectories to get the values on a specified time grid
         """
         n_traj  = raw_times_trajectories.shape[0]
-        if self.save_to_file:
+        if self.save_to_file:            
             all_traj = np.arange(n_traj)
             time_idxs = np.zeros((n_traj, ), dtype=np.int64)    
         else:

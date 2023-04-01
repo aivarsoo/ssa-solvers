@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='ssa-solvers',
     version='0.0.1',    
-    description='A simple Python package for simulating stochastic Master equations',
+    description='A minimalistic Python package for simulating stochastic Master equations',
     url='https://github.com/aivarsoo/ssa-solvers',
     author='Aivar Sootla',
     author_email='aivsoo10@gmail.com',
