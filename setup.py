@@ -3,13 +3,15 @@ from setuptools import setup
 setup(
     name='ssa-solvers',
     version='0.0.1',    
-    description='A simple Python package for simulating stochastic Master equations',
+    description='A minimalistic Python package for simulating stochastic Master equations',
     url='https://github.com/aivarsoo/ssa-solvers',
     author='Aivar Sootla',
     author_email='aivsoo10@gmail.com',
     license='MIT',
     packages=['ssa_solvers'],
-    install_requires=['torch>=1.8.2',
+    install_requires=['torch', # tested on torch=1.8.2  and torch=1.12.0
+                      'einops',
+                      'jupyterlab',
                       'matplotlib',
                       'line-profiler', 
                       'scipy',

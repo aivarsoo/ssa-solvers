@@ -1,100 +1,178 @@
 import torch 
-from typing import Optional,  List
-import copy 
-from ssa_solvers.utils import is_torch_int_type
+from typing import Optional, List, Dict
+import pandas as pd
+import numpy as np
+import os
+import einops
+from datetime import datetime
+import json
 
 class SimulationData:
-    def __init__(self, int_type=torch.int64, device=torch.device("cpu")):
-        self.int_type = int_type
-        assert is_torch_int_type(int_type), "Please specify a torch int type, e.g., torch.int64"
+    def __init__(self, n_species:int, device=torch.device("cpu"), cfg:Dict=None):
         self.device = device 
-        self.raw_times_trajectories = None 
-        self.raw_pops_trajectories = None 
-        self.processed_times_trajectories = None 
-        self.processed_pops_trajectories = None 
+        self.end_time = None
 
-    def save(self, filename: str) -> None:     
+        self.n_species = n_species
+        self.species_idx = [str(idx) for idx in range(self.n_species)]
+        self.save_to_file = cfg['stochastic_sim_cfg']['save_to_file']
+        path=cfg['stochastic_sim_cfg']['path']
+        if self.save_to_file:
+            # saving to file
+            self.trajectories_per_file = cfg['stochastic_sim_cfg']['trajectories_per_file']
+            timestamp = datetime.now()
+            if not os.path.exists(path):
+                os.mkdir(path)
+            self.path = os.path.join(path, str(timestamp))
+            os.mkdir(self.path)
+            self.raw_data_path = os.path.join(self.path, "raw")
+            os.mkdir(self.raw_data_path)
+            self.processed_data_path = os.path.join(self.path, "processed")
+            os.mkdir(self.processed_data_path)
+            self.raw_data_filename = "raw_data.csv"
+            self.processed_data_filename = "processed_data.csv"
+            with open(os.path.join(self.path, 'config.json'), 'w') as fp:
+                json.dump(cfg, fp)
+        else:
+            # keeping in memory
+            self.raw_times_trajectories = None
+            self.raw_pops_trajectories = None
+            self.processed_times_trajectories = None
+            self.processed_pops_trajectories = None
+        
+    def add(self, pops: torch.Tensor, times: torch.Tensor, first_add:bool=False, batch_idx:int=0) -> None:
         """
-        Save data to the disk.
-        :param filename: file name string
-        """
-        torch.save({'raw_times':self.raw_times_trajectories, 
-                    'raw_pops':self.raw_pops_trajectories,
-                    'processed_times':self.processed_times_trajectories, 
-                    'processed_pops':self.processed_pops_trajectories}, filename)
-
-    def load(self, filename:str) -> None:
-        """
-        Load data from the disk.
-        :param filename: file name string
-        """
-        self.raw_times, self.raw_pops, self.processed_times, self.processed_pops = torch.load(filename)
-
-    def add(self, pops_evolution: List, times_evolution:List) -> None:
-        """  
         Adds raw data to the class.
-        :param pops_evolution: population evolution
-        :param times_evolution: time evolution
+        :param pops: population evolution
+        :param times: time evolution
         """
-        self.raw_times_trajectories = torch.stack(times_evolution, dim=-1)
-        self.raw_pops_trajectories = torch.stack(pops_evolution, dim=-1)
-
-    def process_data(self, time_range: Optional[List[int]] = None) -> None:
+        if self.save_to_file:
+            n_runs = times.shape[0]
+            start_idx = batch_idx*self.trajectories_per_file
+            end_idx = batch_idx*self.trajectories_per_file + min(self.trajectories_per_file, n_runs)
+            self._save_to_csv(
+                pops=pops.cpu().numpy(),
+                times=times.cpu().numpy(),
+                run_ids=np.arange(start_idx, end_idx),
+                filename=os.path.join(self.raw_data_path, str(batch_idx) + "_" + self.raw_data_filename),
+                write_header=first_add)
+        else:
+            pops = torch.unsqueeze(pops, -1)
+            times = torch.unsqueeze(times, -1)
+            if first_add:
+                self.raw_pops_trajectories = pops
+                self.raw_times_trajectories = times
+            else:
+                self.raw_pops_trajectories = torch.cat([self.raw_pops_trajectories, pops], dim=2)
+                self.raw_times_trajectories = torch.cat([self.raw_times_trajectories, times], dim=-1)
+        
+    def process_data(self, time_grid: Optional[List[int]] = None) -> None:
         """
         Processes raw data to interpolate it to the time_range. 
-        :param time_range: time grid for the interpolation if None an approriate equidistant grid is calculated
+        :param time_grid: time grid for the interpolation if None an approriate equidistant grid is calculated
         """
-        assert self.raw_pops_trajectories is not None, "Please provide data"
-        if time_range is None:
-            time_range = torch.arange(0, self.raw_times_trajectories[:, -1].min(), device=self.device)
-        n_traj, n_species = self.raw_times_trajectories.shape[0], self.raw_pops_trajectories.shape[-2]
-        self.processed_times_trajectories = time_range
-        self.processed_pops_trajectories = torch.zeros((n_traj, n_species, self.processed_times_trajectories.shape[0]), dtype=self.int_type, device=self.device)
-        all_traj = torch.arange(n_traj, device=self.device)
-        cur_pops = copy.deepcopy(self.raw_pops_trajectories[..., 0])
-        time_idxs = torch.zeros((n_traj, ), dtype=self.int_type, device=self.device)
-        for t_idx, cur_time in enumerate(self.processed_times_trajectories):
-            while (self.raw_times_trajectories[all_traj, time_idxs] < cur_time).any():
-                mask = (self.raw_times_trajectories[all_traj, time_idxs] < cur_time)   # figure out which times need updating 
-                cur_pops[mask, :] = self.raw_pops_trajectories[all_traj[mask], :, time_idxs[mask]] # update pops 
-                time_idxs += mask   # update times 
-            self.processed_pops_trajectories[all_traj, ..., t_idx] = cur_pops  
-          
-    def mean(self, species_idxs: Optional[List[int]] = None, time_range: Optional[List[int]] = None) -> torch.Tensor:
+        if time_grid is None:
+            time_grid = np.arange(0, self.end_time)
+        if self.save_to_file:
+            assert not os.path.exists(os.path.join(self.path, self.raw_data_filename)), "Please provide data"
+            files = os.listdir(self.raw_data_path)
+            for file_idx, file_ in enumerate(files):
+                filename = os.path.join(self.raw_data_path, file_)
+                runs_ids = np.unique(pd.read_csv(filename, usecols=["run_id"])); runs_ids.sort()
+                raw_times_trajectories = einops.rearrange(pd.read_csv(filename, usecols=["time"]).values, "(t h) m -> h (t m) ", h=runs_ids.shape[0])
+                raw_pops_trajectories = einops.rearrange(pd.read_csv(filename, usecols=self.species_idx).values, "(t h) s -> h s t", h=runs_ids.shape[0], s=self.n_species)
+                self._process_batch_trajectories(raw_times_trajectories, raw_pops_trajectories, time_grid, write_header=file_idx==0, runs_ids=runs_ids)
+        else:
+            assert self.raw_pops_trajectories is not None, "Please provide data"
+            assert self.n_species == self.raw_pops_trajectories.shape[-2]
+            time_grid = torch.Tensor(time_grid).to(device=self.device)
+            self._process_batch_trajectories(self.raw_times_trajectories, self.raw_pops_trajectories, time_grid)
+
+    def mean_and_std(self,  time_grid: Optional[List[int]] = None) -> torch.Tensor:
         """
         Computes means of the species of the species numbers 
-        :param species_idxs: species indexes for which we compute the statistic  
         :param time_range: time indexes for which we compute the statistic, 
-        :return: mean of the pops with species_idxs, if time_range is empty then returns the last processed 
+        :return: mean and variance of the pops
         """
-        assert self.raw_pops_trajectories is not None, "Please get the data before computing statistics"
-        assert not (time_range is None and self.processed_pops_trajectories is None), "Specify time_range as no data was processed"
-        if time_range is not None or self.processed_pops_trajectories is None:
-            self.process_data(time_range=time_range)
-        if species_idxs is None:
-            species_idxs = torch.arange(0, self.processed_pops_trajectories.shape[1], device=self.device).type(torch.int64)
-        return torch.mean(self.processed_pops_trajectories[:, species_idxs, :].type(torch.float64), dim=0).cpu().numpy()
+        if self.save_to_file:
+            if time_grid is not None: # if time grid is given re-processing data
+                self.clear_processed_data()
+                self.process_data(time_grid=time_grid)
+            elif not os.listdir(self.processed_data_path): # check if the data was processed (check files?)
+                self.process_data(time_grid=time_grid)
+            else:
+                print("Found existing processed data. Using these data")
+            files = os.listdir(self.processed_data_path)
+            time_length = len(files)
+            _mean = np.zeros((self.n_species, time_length))
+            _std = np.zeros((self.n_species, time_length))
+            for file in files:
+                t_idx = int(file.split("_")[0])
+                df = pd.read_csv(os.path.join(self.processed_data_path, file),usecols=self.species_idx)
+                _mean[:, t_idx] = df.mean().values
+                _std[:, t_idx] = df.std().values
+            return _mean, _std
+        else:
+            assert self.raw_pops_trajectories is not None, "Please get the data before computing statistics"
+            assert not (time_grid is None and self.processed_pops_trajectories is None), "Specify time_range as no data was processed"
+            if self.processed_pops_trajectories is None:
+                self.process_data(time_grid=time_grid)
+            float_data = self.processed_pops_trajectories.float()
+            return torch.mean(float_data, dim=0).cpu().numpy(), torch.std(float_data, dim=0).cpu().numpy()
 
-    def std(self, species_idxs: Optional[List[int]] = None, time_range: Optional[List[int]] = None) -> torch.Tensor:
+    def clear_processed_data(self):
         """
-        Computes standard deviations of the species numbers 
-        :param species_idxs: species indexes for which we compute the statistic  
-        :param time_range: time indexes for which we compute the statistic 
-        :return: standard deviation of the pops with species_idxs, if time_range is empty then returns the last processed 
+        Deleting all processed data
         """
-        assert self.raw_pops_trajectories is not None, "Please get the data before computing statistics"
-        assert not (time_range is None and self.processed_pops_trajectories is None), "Specify time_range as no data was processed"
-        if time_range is not None or self.processed_pops_trajectories is None:
-            self.process_data(time_range=time_range)
-        if species_idxs is None:
-            species_idxs = torch.arange(0, self.processed_pops_trajectories.shape[1], device=self.device).type(torch.int64)
-        return torch.std(self.processed_pops_trajectories[:, species_idxs, :].type(torch.float64), dim=0).cpu().numpy()
+        files = os.listdir(self.processed_data_path)
+        for file_ in files:
+            os.remove(os.path.join(self.processed_data_path, file_))
 
-    def coefficient_of_variation(self, species_idxs: Optional[List[int]] = None, time_range: Optional[List[int]] = None) -> torch.Tensor:
+    # helper files
+    def _process_batch_trajectories(self, raw_times_trajectories, raw_pops_trajectories, time_grid, write_header:bool=False, runs_ids:np.ndarray=None):
         """
-        Computes coefficient of variation of the species numbers 
-        :param species_idxs: species indexes for which we compute the statistic  
-        :param time_range: time indexes for which we compute the statistic 
-        :return: coefficient of variations 
+        Process a batch of trajectories to get the values on a specified time grid
         """
-        return  self.std(species_idxs, time_range) / self.mean(species_idxs, time_range)
+        n_traj  = raw_times_trajectories.shape[0]
+        if self.save_to_file:
+            all_traj = np.arange(n_traj)
+            time_idxs = np.zeros((n_traj, ), dtype=np.int64)
+        else:
+            self.processed_times_trajectories = time_grid
+            self.processed_pops_trajectories = torch.zeros((n_traj, self.n_species, time_grid.shape[0]), dtype=torch.int64, device=self.device)
+            time_idxs = torch.zeros((n_traj, ), dtype=torch.int64, device=self.device)
+            all_traj = torch.arange(n_traj, device=self.device)
+        cur_pops = raw_pops_trajectories[..., 0]
+        for t_idx, cur_time in enumerate(time_grid):
+            mask = (raw_times_trajectories[all_traj, time_idxs] <= cur_time)# figure out which times need updating
+            while mask.any():
+                cur_pops[mask, :] = raw_pops_trajectories[all_traj[mask], :, time_idxs[mask]]# update pops
+                time_idxs += mask# update times
+                mask = (raw_times_trajectories[all_traj, time_idxs] <= cur_time)# figure out which times need updating
+            if self.save_to_file:
+                self._save_to_csv(
+                    pops=cur_pops,
+                    times=cur_time*np.ones((n_traj,)),
+                    run_ids=runs_ids,
+                    filename=os.path.join(
+                            self.processed_data_path,
+                            str(t_idx) + "_" + self.processed_data_filename),
+                    write_header=write_header)
+            else:
+                self.processed_pops_trajectories[all_traj, ..., t_idx] = cur_pops
+
+    def _save_to_csv(self, pops:np.ndarray, times:np.ndarray, run_ids:np.ndarray, filename:str, write_header:bool=False) -> None:
+        """
+        Save data to csv
+        :param pops: population evolution
+        :param times: time evolution
+        :param run_ids: run ids
+        :param filename: filename to save csv
+        :param write_header: write the first row (column indexes) in the file
+        """
+        df=pd.concat([
+           pd.DataFrame(pops),
+           pd.DataFrame({
+                "time": times,
+                "run_id": run_ids})
+                ], axis=1)
+        df.to_csv(filename, mode="a", header=write_header, index=False)
