@@ -124,8 +124,8 @@ class SimulationData:
         Deleting all processed data
         """
         files = os.listdir(self.processed_data_path)
-        for file_idx in range(len(files)):
-            os.remove(os.path.join(self.processed_data_path, files[file_idx]))
+        for file_idx, file_ in enumerate(files):
+            os.remove(os.path.join(self.processed_data_path, file_))
 
     # helper files
     def _process_batch_trajectories(self, raw_times_trajectories, raw_pops_trajectories, time_grid, write_header:bool=False, runs_ids:np.ndarray=None):
