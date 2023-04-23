@@ -4,13 +4,14 @@ import matplotlib.pyplot as plt
 
 torch.set_default_tensor_type(torch.FloatTensor)
 
-device = torch.device('cuda:0') if torch.cuda.is_available else torch.device("cpu")
+# device = torch.device('cuda:0') if torch.cuda.is_available else torch.device("cpu")
 
 import os, sys 
 from ssa_solvers.simulators import StochasticSimulator, DeterministicSimulator 
 from ssa_solvers.data_class import SimulationData
 
 if __name__ == "__main__":
+    device = torch.device("cpu")
     end_time = 300
     n_steps = 150
     n_traj = 5000
@@ -22,7 +23,7 @@ if __name__ == "__main__":
     cfg['stochastic_sim_cfg']['trajectories_per_file'] = 50000
 
     ode_simulator = DeterministicSimulator(
-        reaction_system=TetRsRNAInCis(device=torch.device("cpu")),
+        reaction_system=TetRsRNAInCis(device=device),
         cfg=cfg
     )
     reaction_system_incis = TetRsRNAInCis(device=device)
@@ -51,4 +52,4 @@ if __name__ == "__main__":
     plt.xlabel('Time (s)')
     plt.ylabel('Number of species')
     plt.legend()
-    plt.show()
+    plt.savefig('my_plot.png')

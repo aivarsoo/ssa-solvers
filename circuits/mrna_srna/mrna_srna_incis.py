@@ -73,4 +73,3 @@ if __name__ == "__main__":
     n_reactions = system.propensities(pops).shape[0]
     assert system.stoichiometry_matrix.shape == (n_species, n_reactions), \
         print(n_reactions, n_species, system.stoichiometry_matrix.shape)
-    pass 
