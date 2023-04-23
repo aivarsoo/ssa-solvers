@@ -28,7 +28,7 @@ class mRNAsRNAInTrans(BaseChemicalReactionSystem):
                                     [0, 1,  0, -1,  0, -1,  0],
                                     [0, 0 , 1,  0,  0,  0, -1] 
                                 ], dtype=torch.int64, device=device)
-        super(mRNAsRNAInTrans, self).__init__(device=device)      
+        super(mRNAsRNAInTrans, self).__init__(device=device)
                                 
     def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
         """
@@ -53,13 +53,13 @@ class mRNAsRNAInTrans(BaseChemicalReactionSystem):
         :return: list of propensities
         """
         return [
-            self.params['volume'] * self.params['beta_m'] * np.ones(pops.shape[:-1]), 
-            self.params['volume'] * self.params['beta_s'] * np.ones(pops.shape[:-1]), 
-            self.params['k_t'] * pops[..., self.species['mRNA']], 
-            self.params['k_rep'] / self.params['volume'] * pops[..., self.species['mRNA']] * pops[..., self.species['sRNA']],     
-            self.params['delta_m'] * pops[..., self.species['mRNA']], 
-            self.params['delta_s'] * pops[..., self.species['sRNA']], 
-            self.params['delta_p'] * pops[..., self.species['Prot']], 
+            self.params['volume'] * self.params['beta_m'] * np.ones(pops.shape[:-1]),
+            self.params['volume'] * self.params['beta_s'] * np.ones(pops.shape[:-1]),
+            self.params['k_t'] * pops[..., self.species['mRNA']],
+            self.params['k_rep'] / self.params['volume'] * pops[..., self.species['mRNA']] * pops[..., self.species['sRNA']],
+            self.params['delta_m'] * pops[..., self.species['mRNA']],
+            self.params['delta_s'] * pops[..., self.species['sRNA']],
+            self.params['delta_p'] * pops[..., self.species['Prot']],
         ]
 
 

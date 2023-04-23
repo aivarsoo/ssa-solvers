@@ -37,7 +37,7 @@ class StochasticSimulator(Simulator):
         self.reaction_system = reaction_system
         self.data_set = SimulationData(
             n_species=self.reaction_system.n_species,
-            device=device, 
+            device=device,
             cfg=self.cfg)    
 
     def set_reaction_params(self, params:Dict):
@@ -45,10 +45,11 @@ class StochasticSimulator(Simulator):
         Set new reaction parameters and re-initialize the data set
         :param params: parameters for the reaction network
         """
-        self.reaction_system.params = params 
+        self.reaction_system.params = params
         self.data_set = SimulationData(
-            device=self.device, 
-            cfg=self.cfg
+            n_species=self.reaction_system.n_species,
+            device=self.device,
+            cfg=self.cfg,            
             )
 
 
@@ -64,19 +65,19 @@ class StochasticSimulator(Simulator):
         assert init_pops.shape[1] == self.reaction_system.n_species
         if self.data_set.save_to_file:
             # splitting simulation into batches and saving the results on disk
-            pops = torch.repeat_interleave(init_pops, self.data_set.trajectories_per_file, dim=0) 
+            pops = torch.repeat_interleave(init_pops, self.data_set.trajectories_per_file, dim=0)
             times = torch.zeros((self.data_set.trajectories_per_file, ), device=self.device)
             for batch_idx in range(n_trajectories // self.data_set.trajectories_per_file):
                 self.simulate_trajectories(pops, times, batch_idx=batch_idx)
-            if n_trajectories % self.data_set.trajectories_per_file > 0:    
+            if n_trajectories % self.data_set.trajectories_per_file > 0:
                 n_trajs = min(self.data_set.trajectories_per_file, n_trajectories % self.data_set.trajectories_per_file)
                 self.simulate_trajectories(
-                    torch.repeat_interleave(init_pops, n_trajs, dim=0), 
+                    torch.repeat_interleave(init_pops, n_trajs, dim=0),
                     torch.zeros((n_trajs, ), device=self.device),
                     batch_idx=n_trajectories // self.data_set.trajectories_per_file)
-        else:    
-            # keeping everything in memmory (one batch) 
-            pops = torch.repeat_interleave(init_pops, n_trajectories, dim=0) 
+        else:
+            # keeping everything in memmory (one batch)
+            pops = torch.repeat_interleave(init_pops, n_trajectories, dim=0)
             times = torch.zeros((n_trajectories, ), device=self.device)
             self.simulate_trajectories(pops, times)
 

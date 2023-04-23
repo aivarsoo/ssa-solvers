@@ -26,7 +26,7 @@ class mRNAsRNAInCis(BaseChemicalReactionSystem):
                                     [1,  0, -1, -1,  0], 
                                     [0,  1,  0,  0, -1] 
                                 ], dtype=torch.int64, device=device)
-        super(mRNAsRNAInCis, self).__init__(device=device)      
+        super(mRNAsRNAInCis, self).__init__(device=device)
 
 
     def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
@@ -50,11 +50,11 @@ class mRNAsRNAInCis(BaseChemicalReactionSystem):
         :return: list of propensities 
         """
         return [
-            self.params['volume'] * self.params['beta_fmrna'] * np.ones(pops.shape[:-1]), 
-            self.params['k_t'] * pops[..., self.species['fmRNA']], 
-            self.params['k_rep'] / self.params['volume'] * pops[..., self.species['fmRNA']] * (pops[..., self.species['fmRNA']] - 1) / 2.0,     
-            self.params['delta_fmrna'] * pops[..., self.species['fmRNA']], 
-            self.params['delta_p'] * pops[..., self.species['Prot']], 
+            self.params['volume'] * self.params['beta_fmrna'] * np.ones(pops.shape[:-1]),
+            self.params['k_t'] * pops[..., self.species['fmRNA']],
+            self.params['k_rep'] / self.params['volume'] * pops[..., self.species['fmRNA']] * (pops[..., self.species['fmRNA']] - 1) / 2.0,
+            self.params['delta_fmrna'] * pops[..., self.species['fmRNA']],
+            self.params['delta_p'] * pops[..., self.species['Prot']],
         ]
 
     def _jacobian(self, pops: np.ndarray) -> List[np.ndarray]:

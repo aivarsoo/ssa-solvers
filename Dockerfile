@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y python3 python3-pip
 COPY requirements.txt ./.
 RUN pip install -r ./requirements.txt
 WORKDIR /project/
-ADD . /project/
+COPY . /project/
 RUN pip install -e .
 
 # RUN useradd -d /project -u 12567 --create-home user

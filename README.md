@@ -10,18 +10,9 @@ cd ssa-solvers
 pip install -e .
 ```
 
-## Running test
+# A small package for Stochastic Simulations
 
 TBD
-
-## Examples
-
-
-## TODO:
-
-    1. Make tests 
-    2. still think about data processing. is it most efficient?
-
 
 
 
