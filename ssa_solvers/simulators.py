@@ -38,7 +38,7 @@ class StochasticSimulator(Simulator):
         self.data_set = SimulationData(
             n_species=self.reaction_system.n_species,
             device=device,
-            cfg=self.cfg)    
+            cfg=self.cfg)
 
     def set_reaction_params(self, params:Dict):
         """
@@ -49,7 +49,7 @@ class StochasticSimulator(Simulator):
         self.data_set = SimulationData(
             n_species=self.reaction_system.n_species,
             device=self.device,
-            cfg=self.cfg,            
+            cfg=self.cfg,
             )
 
 

@@ -29,18 +29,18 @@ class SimulationData:
             self.processed_data_path = os.path.join(self.path, "processed")
             os.mkdir(self.processed_data_path)
             self.raw_data_filename = "raw_data.csv"
-            self.processed_data_filename = "processed_data.csv"            
+            self.processed_data_filename = "processed_data.csv"
             with open(os.path.join(self.path, 'config.json'), 'w') as fp:
                 json.dump(cfg, fp)
         else:
             # keeping in memory
-            self.raw_times_trajectories = None 
-            self.raw_pops_trajectories = None 
-            self.processed_times_trajectories = None 
-            self.processed_pops_trajectories = None 
+            self.raw_times_trajectories = None
+            self.raw_pops_trajectories = None
+            self.processed_times_trajectories = None
+            self.processed_pops_trajectories = None
         
     def add(self, pops: torch.Tensor, times: torch.Tensor, first_add:bool=False, batch_idx:int=0) -> None:
-        """  
+        """
         Adds raw data to the class.
         :param pops: population evolution
         :param times: time evolution
