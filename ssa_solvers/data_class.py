@@ -124,7 +124,7 @@ class SimulationData:
         Deleting all processed data
         """
         files = os.listdir(self.processed_data_path)
-        for file_idx, file_ in enumerate(files):
+        for file_ in files:
             os.remove(os.path.join(self.processed_data_path, file_))
 
     # helper files
