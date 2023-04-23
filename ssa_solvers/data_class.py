@@ -75,8 +75,8 @@ class SimulationData:
         if self.save_to_file:
             assert not os.path.exists(os.path.join(self.path, self.raw_data_filename)), "Please provide data"
             files = os.listdir(self.raw_data_path)
-            for file_idx in range(len(files)):
-                filename = os.path.join(self.raw_data_path, files[file_idx])
+            for file_idx, file_ in enumerate(files):
+                filename = os.path.join(self.raw_data_path, file_)
                 runs_ids = np.unique(pd.read_csv(filename, usecols=["run_id"])); runs_ids.sort()
                 raw_times_trajectories = einops.rearrange(pd.read_csv(filename, usecols=["time"]).values, "(t h) m -> h (t m) ", h=runs_ids.shape[0])
                 raw_pops_trajectories = einops.rearrange(pd.read_csv(filename, usecols=self.species_idx).values, "(t h) s -> h s t", h=runs_ids.shape[0], s=self.n_species)
@@ -102,7 +102,7 @@ class SimulationData:
             else:
                 print("Found existing processed data. Using these data")
             files = os.listdir(self.processed_data_path)
-            time_length = len(files)       
+            time_length = len(files)
             _mean = np.zeros((self.n_species, time_length))
             _std = np.zeros((self.n_species, time_length))
             for file in files:
@@ -116,7 +116,7 @@ class SimulationData:
             assert not (time_grid is None and self.processed_pops_trajectories is None), "Specify time_range as no data was processed"
             if self.processed_pops_trajectories is None:
                 self.process_data(time_grid=time_grid)
-            float_data = self.processed_pops_trajectories.float()                
+            float_data = self.processed_pops_trajectories.float()
             return torch.mean(float_data, dim=0).cpu().numpy(), torch.std(float_data, dim=0).cpu().numpy()
 
     def clear_processed_data(self):
@@ -143,11 +143,11 @@ class SimulationData:
             all_traj = torch.arange(n_traj, device=self.device)
         cur_pops = raw_pops_trajectories[..., 0]
         for t_idx, cur_time in enumerate(time_grid):
-            mask = (raw_times_trajectories[all_traj, time_idxs] <= cur_time)   # figure out which times need updating
+            mask = (raw_times_trajectories[all_traj, time_idxs] <= cur_time)# figure out which times need updating
             while mask.any():
-                cur_pops[mask, :] = raw_pops_trajectories[all_traj[mask], :, time_idxs[mask]] # update pops
-                time_idxs += mask   # update times 
-                mask = (raw_times_trajectories[all_traj, time_idxs] <= cur_time)   # figure out which times need updating    
+                cur_pops[mask, :] = raw_pops_trajectories[all_traj[mask], :, time_idxs[mask]]# update pops
+                time_idxs += mask# update times
+                mask = (raw_times_trajectories[all_traj, time_idxs] <= cur_time)# figure out which times need updating
             if self.save_to_file:
                 self._save_to_csv(
                     pops=cur_pops,
@@ -157,22 +157,22 @@ class SimulationData:
                             self.processed_data_path,
                             str(t_idx) + "_" + self.processed_data_filename),
                     write_header=write_header)
-            else:    
-                self.processed_pops_trajectories[all_traj, ..., t_idx] = cur_pops  
+            else:
+                self.processed_pops_trajectories[all_traj, ..., t_idx] = cur_pops
 
     def _save_to_csv(self, pops:np.ndarray, times:np.ndarray, run_ids:np.ndarray, filename:str, write_header:bool=False) -> None:
         """
-        Save data to csv 
+        Save data to csv
         :param pops: population evolution
         :param times: time evolution
         :param run_ids: run ids
-        :param filename: filename to save csv 
+        :param filename: filename to save csv
         :param write_header: write the first row (column indexes) in the file
         """
         df=pd.concat([
            pd.DataFrame(pops),
            pd.DataFrame({
-                "time": times, 
+                "time": times,
                 "run_id": run_ids})
                 ], axis=1)
         df.to_csv(filename, mode="a", header=write_header, index=False)

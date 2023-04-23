@@ -26,7 +26,7 @@ class TetRsRNAInCis(BaseChemicalReactionSystem):
                                     [1, 0, -1, -1,  0], 
                                     [0, 1,  0,  0, -1] 
                                 ], dtype=torch.int64, device=device)
-        super(TetRsRNAInCis, self).__init__(device=device)                        
+        super(TetRsRNAInCis, self).__init__(device=device)
 
     def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
         param1 = self.params['K2'] / self.params['volume'] / (1 + self.params['aTc'] / self.params['KD'])
