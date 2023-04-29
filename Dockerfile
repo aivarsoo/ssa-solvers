@@ -15,8 +15,3 @@ RUN pip install -e .
 # USER user
 
 # CMD [ "python", "tests/test_auto.py"]
-
-
-
-
-
