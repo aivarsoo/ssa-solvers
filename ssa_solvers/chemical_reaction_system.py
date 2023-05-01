@@ -1,19 +1,28 @@
-import torch
-import numpy as np
-from ssa_solvers.utils import is_matrix_int_type, is_tensor_int_type
+from __future__ import annotations
+
 from typing import List
+
+import numpy as np
+import torch
+
+from ssa_solvers.utils import is_matrix_int_type
+from ssa_solvers.utils import is_tensor_int_type
 # Array = Union[torch.Tensor, np.ndarray]
+
 
 class BaseChemicalReactionSystem:
     """
-    Base class for chemical reaction systems 
+    Base class for chemical reaction systems
     """
+
     def __init__(self, device=torch.device("cpu")):
         self.device = device
-        assert len(self._stoichiometry_matrix.shape) == 2, "Stoichiometry_matrix should be a matrix (2-d tensor)!"
-        assert is_matrix_int_type(self._stoichiometry_matrix) or is_tensor_int_type(self._stoichiometry_matrix), "Stochimetry matrix is a matrix of integers!"
+        assert len(
+            self._stoichiometry_matrix.shape) == 2, "Stoichiometry_matrix should be a matrix (2-d tensor)!"
+        assert is_matrix_int_type(self._stoichiometry_matrix) or is_tensor_int_type(
+            self._stoichiometry_matrix), "Stochimetry matrix is a matrix of integers!"
         assert self.n_reactions == self.propensities(torch.zeros(self.n_species, device=self.device)).shape[0], \
-        "Propensity function dimension do not match stochiometry"
+            "Propensity function dimension do not match stochiometry"
 
     def propensities(self, pops: torch.Tensor) -> torch.Tensor:
         return torch.vstack(self._propensities(pops))
@@ -53,7 +62,7 @@ class BaseChemicalReactionSystem:
         for key in params.keys():
             assert key in self.params_names, "No such parameter in the system!"
             self._params[key] = params[key]
-    
+
     @property
     def species(self):
         return self._species
@@ -69,14 +78,14 @@ class BaseChemicalReactionSystem:
     @property
     def n_reactions(self):
         return self.stoichiometry_matrix.shape[1]
-        
+
     @n_reactions.setter
     def n_reactions(self):
         raise AttributeError("Cannot set number of reactions directly!")
 
     @property
     def stoichiometry_matrix(self):
-        return self._stoichiometry_matrix    
+        return self._stoichiometry_matrix
 
     @stoichiometry_matrix.setter
     def stoichiometry_matrix(self, stoichiometry_matrix: torch.Tensor):
