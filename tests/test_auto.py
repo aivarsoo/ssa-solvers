@@ -60,4 +60,4 @@ if __name__ == "__main__":
     plt.xlabel('Time (s)')
     plt.ylabel('Number of species')
     plt.legend()
-    plt.savefig('my_plot.png')
+    plt.savefig('logs/my_plot.png')
