@@ -21,8 +21,8 @@ if __name__ == "__main__":
 
     from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis, cfg
 
-    cfg['stochastic_sim_cfg']['save_to_file'] = True
-    cfg['stochastic_sim_cfg']['trajectories_per_file'] = 50000
+    cfg['stochastic_sim_cfg'].update(
+        dict(save_to_file=True, trajectories_per_file=50000))
 
     ode_simulator = DeterministicSimulator(
         reaction_system=TetRsRNAInCis(device=device),
@@ -45,7 +45,6 @@ if __name__ == "__main__":
         init_pops=init_pops, end_time=end_time, n_trajectories=n_traj)
 
     print("computing mean and std")
-    # time_grid = np.array([time_grid[-1]])
     means_incis, stds_incis = ssa_simulator_incis.data_set.mean_and_std(
         time_grid=time_grid)
 

@@ -9,12 +9,7 @@ import torch
 from .data_class import SimulationData
 
 
-class Simulator:
-    def simulate(self):
-        raise NotImplementedError
-
-
-class DeterministicSimulator(Simulator):
+class DeterministicSimulator:
     def __init__(self,
                  reaction_system,
                  cfg: Dict) -> None:
@@ -33,7 +28,7 @@ class DeterministicSimulator(Simulator):
         return sol.y
 
 
-class StochasticSimulator(Simulator):
+class StochasticSimulator:
     def __init__(self,
                  reaction_system,
                  cfg: Dict,
@@ -60,7 +55,7 @@ class StochasticSimulator(Simulator):
             cfg=self.cfg,
         )
 
-    def simulate(self, init_pops: torch.Tensor, end_time: int, n_trajectories: int) -> None:
+    def simulate(self, init_pops: torch.Tensor, end_time: int, n_trajectories: int):
         """
         Stochastic simulation loop with splitting into batches
         :param init_pops: initial population
@@ -112,7 +107,7 @@ class StochasticSimulator(Simulator):
         if self.checkpoint_freq and iter_idx % self.checkpoint_freq != 0:
             self.data_set.add(pops, times, batch_idx=batch_idx)
 
-    def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor) -> None:
+    def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor):
         """
         Chooses the method for simulation
         :param pops: current population
@@ -126,7 +121,7 @@ class StochasticSimulator(Simulator):
             raise NotImplementedError
         return pops, times
 
-    def simulate_one_step_first_reaction(self, pops: torch.Tensor, times: torch.Tensor) -> None:
+    def simulate_one_step_first_reaction(self, pops: torch.Tensor, times: torch.Tensor):
         """
         Simulates one step of the first reaction Gillespie simulation method
         :param pops:  current population values (updated in the function)
@@ -142,7 +137,7 @@ class StochasticSimulator(Simulator):
             self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
         return pops + next_pops, times + next_times
 
-    def simulate_one_step_direct(self, pops: torch.Tensor, times: torch.Tensor) -> None:
+    def simulate_one_step_direct(self, pops: torch.Tensor, times: torch.Tensor):
         """
         Simulates one step of the direct Gillespie simulation method
         :param pops:  current population values (updated in the function)
