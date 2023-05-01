@@ -66,6 +66,22 @@ class TetRsRNAInTrans(BaseChemicalReactionSystem):
             self.params['delta_tetr'] * pops[..., self.species['TetR']],
         ]
 
+    def _propensities_np(self, pops: np.ndarray) -> List[np.ndarray]:
+        param1 = self.params['K2'] / self.params['volume'] / \
+            (1 + self.params['aTc'] / self.params['KD'])
+        ptet_tx_init = self.params['TX_ptet'] / (self.params['K1'] + (
+            np.ones(pops.shape[:-1]) + pops[..., self.species['TetR']] * param1) ** 2)
+        return [
+            self.params['volume'] * ptet_tx_init,
+            self.params['volume'] * ptet_tx_init,
+            self.params['k_t'] * pops[..., self.species['mRNA']],
+            self.params['k_rep'] / self.params['volume'] * pops[...,
+                                                                self.species['mRNA']] * pops[..., self.species['sRNA']],
+            self.params['delta_mrna'] * pops[..., self.species['mRNA']],
+            self.params['delta_srna'] * pops[..., self.species['sRNA']],
+            self.params['delta_tetr'] * pops[..., self.species['TetR']],
+        ]
+
 
 if __name__ == "__main__":
     system = TetRsRNAInTrans()

@@ -79,7 +79,7 @@ class SimulationData:
     def process_data(self, time_grid: np.ndarray):
         """
         Processes raw data to interpolate it to the time_range.
-        :param time_grid: time grid for the interpolation if None an approriate equidistant grid is calculated
+        :param time_grid: time grid for the interpolation
         """
         if self.save_to_file:
             assert not os.path.exists(os.path.join(
