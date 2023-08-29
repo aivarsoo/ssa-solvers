@@ -30,5 +30,11 @@ chmod 775 -R logs
 
 Run the container while mounting the `./logs` directory
 ```
-docker run -it -rm --runtime nvidia --gpus all -v ./logs:/home/docker_user/project/logs --group-add $(id -g) --user docker_user ssa_solvers bash
+docker run -it -rm --expose 8888 --runtime nvidia --gpus all -v ./logs:/home/docker_user/project/logs --group-add $(id -g) --user docker_user ssa_solvers bash
 ```
+
+# TODO
+
+* Fix the notebooks
+* Making logging per run rather than per class
+* Add plotting methods

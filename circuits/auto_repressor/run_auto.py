@@ -1,10 +1,11 @@
-from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis, cfg
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
+from circuits.auto_repressor.tetr_srna_incis import cfg
+from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis
 from ssa_solvers.simulators import DeterministicSimulator
 from ssa_solvers.simulators import StochasticSimulator
 
@@ -34,7 +35,6 @@ def run_auto(end_time: float = 300, n_steps: int = 150, n_traj: int = 100, devic
         (reaction_system_incis.n_species,)), time_grid=time_grid)
     ssa_simulator_incis.simulate(
         init_pops=init_pops, end_time=end_time, n_trajectories=n_traj)
-
     print("computing mean and std")
     means_incis, stds_incis = ssa_simulator_incis.data_set.mean_and_std(
         time_grid=time_grid)

@@ -62,7 +62,10 @@ class StochasticSimulator:
         :param n_trajectories: number of trajectories for simulations
         """
         self.data_set.end_time = end_time
-        init_pops = init_pops.flatten().view(1, -1)  # making sure the size is correct
+        # making sure the size is correct
+        init_pops = init_pops.flatten().view(1, -1)
+        # emptying the data set
+        self.data_set.reset()
         assert init_pops.shape[1] == self.reaction_system.n_species
         if self.data_set.save_to_file:
             # splitting simulation into batches and saving the results on disk

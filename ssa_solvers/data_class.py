@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Dict
 
 import einops
@@ -17,18 +18,21 @@ class SimulationData:
         self.n_species = n_species
         self.species_idx = [str(idx) for idx in range(self.n_species)]
         self.save_to_file = cfg['stochastic_sim_cfg']['save_to_file']
-        path = cfg['stochastic_sim_cfg']['path']
+        path = Path(cfg['stochastic_sim_cfg']['path'])
+        timestamp = datetime.now()
+        if not os.path.exists(path):
+            os.mkdir(path)
+        self.log_path = path / str(timestamp)
+        os.mkdir(self.log_path)
+        self.raw_trajectories_computed = False
+        self.trajectories_processed = False
         if self.save_to_file:
             # saving to file
             self.trajectories_per_file = cfg['stochastic_sim_cfg']['trajectories_per_file']
-            timestamp = datetime.now()
-            if not os.path.exists(path):
-                os.mkdir(path)
-            self.log_path = os.path.join(path, str(timestamp))
-            os.mkdir(self.log_path)
-            self.raw_data_path = os.path.join(self.log_path, "raw")
+
+            self.raw_data_path = self.log_path / "raw"
             os.mkdir(self.raw_data_path)
-            self.processed_data_path = os.path.join(self.log_path, "processed")
+            self.processed_data_path = self.log_path / "processed"
             os.mkdir(self.processed_data_path)
             self.raw_data_filename = "raw_data.csv"
             self.processed_data_filename = "processed_data.csv"
@@ -36,10 +40,24 @@ class SimulationData:
                 json.dump(cfg, fp)
         else:
             # keeping in memory
-            self.raw_trajectories_computed = False
             self.raw_times_trajectories = torch.Tensor([])
             self.raw_pops_trajectories = torch.Tensor([])
-            self.trajectories_processed = False
+            self.processed_times_trajectories = torch.Tensor([])
+            self.processed_pops_trajectories = torch.Tensor([])
+
+    def reset(self):
+        self.raw_trajectories_computed = False
+        self.trajectories_processed = False
+        if self.save_to_file:
+            if os.path.exists(self.raw_data_path):
+                for file in os.listdir(self.raw_data_path):
+                    os.remove(self.raw_data_path / file)
+            if os.path.exists(self.processed_data_path):
+                for file in os.listdir(self.processed_data_path):
+                    os.remove(self.processed_data_path / file)
+        else:
+            self.raw_times_trajectories = torch.Tensor([])
+            self.raw_pops_trajectories = torch.Tensor([])
             self.processed_times_trajectories = torch.Tensor([])
             self.processed_pops_trajectories = torch.Tensor([])
 
