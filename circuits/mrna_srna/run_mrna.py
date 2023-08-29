@@ -1,15 +1,18 @@
 import numpy as np
 import torch
 
+from circuits.mrna_srna.mrna_srna_incis import cfg
+from circuits.mrna_srna.mrna_srna_incis import mRNAsRNAInCis
+from circuits.mrna_srna.mrna_srna_intrans import cfg
+from circuits.mrna_srna.mrna_srna_intrans import mRNAsRNAInTrans
 from ssa_solvers.data_class import SimulationData
 from ssa_solvers.simulators import DeterministicSimulator
 from ssa_solvers.simulators import StochasticSimulator
-from circuits.mrna_srna.mrna_srna_incis import mRNAsRNAInCis, cfg
-from circuits.mrna_srna.mrna_srna_intrans import mRNAsRNAInTrans, cfg
 
 torch.set_default_tensor_type(torch.DoubleTensor)
 
-def run_mrna(end_time:float = 300, n_steps:int = 150, n_traj:int = 100, device=torch.device('cpu')):
+
+def run_mrna(end_time: float = 300, n_steps: int = 150, n_traj: int = 100, device=torch.device('cpu')):
     time_grid = np.arange(0, end_time, end_time / n_steps)
     cfg['stochastic_sim_cfg'].update(
         dict(save_to_file=True, trajectories_per_file=50000))
@@ -36,7 +39,6 @@ def run_mrna(end_time:float = 300, n_steps:int = 150, n_traj:int = 100, device=t
         (reaction_system_incis.n_species,)), time_grid=time_grid)
     means_incis, stds_incis = ssa_simulator_incis.data_set.mean_and_std(
         time_grid=time_grid)
-
 
     ode_simulator_intrans = DeterministicSimulator(
         reaction_system=mRNAsRNAInTrans(device=torch.device("cpu")),

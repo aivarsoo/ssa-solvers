@@ -16,13 +16,13 @@ TBD
 
 # Run on docker on a Linux system
 
-Build the docker image 
+Build the docker image
 
 ```
 docker build . --tag ssa_solvers
 ```
 
-Make sure the docker container can write in the directory `./logs` while running 
+Make sure the docker container can write in the directory `./logs` while running
 
 ```
 chmod 775 -R logs

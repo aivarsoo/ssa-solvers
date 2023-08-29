@@ -5,7 +5,7 @@ ARG CUDNN="8"
 FROM pytorch/pytorch:${PYTORCH}-cuda${CUDA}-cudnn${CUDNN}-runtime
 
 
-# installing a new user and packages 
+# installing a new user and packages
 ARG USERNAME="docker_user"
 RUN apt update && apt install -y git && pip install --upgrade pip && useradd -m -u 1001 ${USERNAME}
 USER ${USERNAME}

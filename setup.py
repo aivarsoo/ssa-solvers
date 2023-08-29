@@ -9,7 +9,7 @@ setup(
     author_email='aivar.sootla@gmail.com',
     license='MIT',
     packages=['ssa_solvers'],
-    install_requires=['torch==2.0.0', 
+    install_requires=['torch==2.0.0',
                       'einops==0.4.1',
                       'jupyterlab==3.4.3',
                       'matplotlib==3.5.2',
@@ -19,7 +19,7 @@ setup(
                       "pandas==1.4.3",
                       'pre-commit==3.3.3',
                       'fire==0.5.0'
-            ],
+                      ],
 
     classifiers=[
         'Development Status :: 1 - Planning',

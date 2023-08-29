@@ -1,6 +1,8 @@
+from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis, cfg
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
 import torch
 
 from ssa_solvers.simulators import DeterministicSimulator
@@ -8,10 +10,8 @@ from ssa_solvers.simulators import StochasticSimulator
 
 torch.set_default_tensor_type(torch.FloatTensor)
 
-from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis, cfg
 
-    
-def run_auto(end_time:float = 300, n_steps:int = 150, n_traj:int = 100, device=torch.device('cpu')):
+def run_auto(end_time: float = 300, n_steps: int = 150, n_traj: int = 100, device=torch.device('cpu')):
     time_grid = np.arange(0, end_time, end_time / n_steps)
     cfg['stochastic_sim_cfg'].update(
         dict(save_to_file=True, trajectories_per_file=50000))
@@ -53,7 +53,3 @@ def run_auto(end_time:float = 300, n_steps:int = 150, n_traj:int = 100, device=t
     plt.legend()
     plt.savefig(Path(ssa_simulator_incis.log_path) / 'plot.png')
     print("done")
-
-
-
-
