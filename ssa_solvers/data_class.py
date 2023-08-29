@@ -24,15 +24,15 @@ class SimulationData:
             timestamp = datetime.now()
             if not os.path.exists(path):
                 os.mkdir(path)
-            self.path = os.path.join(path, str(timestamp))
-            os.mkdir(self.path)
-            self.raw_data_path = os.path.join(self.path, "raw")
+            self.log_path = os.path.join(path, str(timestamp))
+            os.mkdir(self.log_path)
+            self.raw_data_path = os.path.join(self.log_path, "raw")
             os.mkdir(self.raw_data_path)
-            self.processed_data_path = os.path.join(self.path, "processed")
+            self.processed_data_path = os.path.join(self.log_path, "processed")
             os.mkdir(self.processed_data_path)
             self.raw_data_filename = "raw_data.csv"
             self.processed_data_filename = "processed_data.csv"
-            with open(os.path.join(self.path, 'config.json'), 'w') as fp:
+            with open(os.path.join(self.log_path, 'config.json'), 'w') as fp:
                 json.dump(cfg, fp)
         else:
             # keeping in memory
@@ -81,7 +81,7 @@ class SimulationData:
         """
         if self.save_to_file:
             assert not os.path.exists(os.path.join(
-                self.path, self.raw_data_filename)), "Please provide data"
+                self.log_path, self.raw_data_filename)), "Please provide data"
             files = os.listdir(self.raw_data_path)
             for file_idx, file_ in enumerate(files):
                 filename = os.path.join(self.raw_data_path, file_)

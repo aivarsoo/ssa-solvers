@@ -40,6 +40,7 @@ class StochasticSimulator:
             n_species=self.reaction_system.n_species,
             device=device,
             cfg=self.cfg)
+        self.log_path = self.data_set.log_path
 
     def set_reaction_params(self, params: Dict):
         """

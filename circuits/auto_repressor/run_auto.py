@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 import matplotlib.pyplot as plt
 import numpy as np
+from pathlib import Path
 import torch
 
 from ssa_solvers.simulators import DeterministicSimulator
@@ -9,18 +8,11 @@ from ssa_solvers.simulators import StochasticSimulator
 
 torch.set_default_tensor_type(torch.FloatTensor)
 
-# device = torch.device('cuda:0') if torch.cuda.is_available else torch.device("cpu")
+from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis, cfg
 
-
-if __name__ == "__main__":
-    device = torch.device("cpu")
-    end_time = 300
-    n_steps = 150
-    n_traj = 5000
+    
+def run_auto(end_time:float = 300, n_steps:int = 150, n_traj:int = 100, device=torch.device('cpu')):
     time_grid = np.arange(0, end_time, end_time / n_steps)
-
-    from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis, cfg
-
     cfg['stochastic_sim_cfg'].update(
         dict(save_to_file=True, trajectories_per_file=50000))
 
@@ -35,7 +27,6 @@ if __name__ == "__main__":
         device=device
     )
     reaction_system_incis.params = {'aTc': 100}  # setting aTc level
-    # torch.randint(1, (reaction_system.n_species, ))
     init_pops = torch.zeros(
         (reaction_system_incis.n_species, ), dtype=torch.int64, device=device)
     print("starting simulation")
@@ -60,4 +51,9 @@ if __name__ == "__main__":
     plt.xlabel('Time (s)')
     plt.ylabel('Number of species')
     plt.legend()
-    plt.savefig('logs/my_plot.png')
+    plt.savefig(Path(ssa_simulator_incis.log_path) / 'plot.png')
+    print("done")
+
+
+
+
