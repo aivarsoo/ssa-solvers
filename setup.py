@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from setuptools import setup
 
 setup(
@@ -8,17 +6,20 @@ setup(
     description='A minimalistic Python package for simulating stochastic Master equations',
     url='https://github.com/aivarsoo/ssa-solvers',
     author='Aivar Sootla',
-    author_email='aivsoo10@gmail.com',
+    author_email='aivar.sootla@gmail.com',
     license='MIT',
     packages=['ssa_solvers'],
-    install_requires=['torch',  # tested on torch=1.8.2  and torch=1.12.0
-                      'einops',
-                      'jupyterlab',
-                      'matplotlib',
-                      'line-profiler',
-                      'scipy',
-                      'numpy'
-                      ],
+    install_requires=['torch==2.0.0', 
+                      'einops==0.4.1',
+                      'jupyterlab==3.4.3',
+                      'matplotlib==3.5.2',
+                      'line-profiler==3.5.1',
+                      'scipy==1.8.1',
+                      'numpy==1.23.1',
+                      "pandas==1.4.3",
+                      'pre-commit==3.3.3',
+                      'fire==0.5.0'
+            ],
 
     classifiers=[
         'Development Status :: 1 - Planning',
