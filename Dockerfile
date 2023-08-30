@@ -11,11 +11,7 @@ RUN apt update && apt install -y git && pip install --upgrade pip && useradd -m 
 USER ${USERNAME}
 WORKDIR /home/${USERNAME}/project
 
-# installing the required packages for docker_user
-COPY --chown=${USERNAME}:${USERNAME} requirements.txt /home/${USERNAME}/project/
-RUN pip install --user -r requirements.txt
-
-# copying the remaining files and installing the main packages for docker_user (Extra layer for faster re-build in development)
+# copying the files and installing the main packages for docker_user
 COPY --chown=${USERNAME}:${USERNAME} . /home/${USERNAME}/project/
 RUN pip install --user -e .
 
