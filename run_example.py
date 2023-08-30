@@ -5,12 +5,18 @@ from circuits.auto_repressor.run_auto import run_auto
 from circuits.mrna_srna.run_mrna import run_mrna
 
 run_method = dict(
-    autorepressor=run_auto,
+    auto=run_auto,
     mrna=run_mrna
 )
 
+choose_device = {
+    "cpu": torch.device('cpu'),
+    "cuda": torch.device('cuda:0')
+}
 
-def run_simulations(circuit: str = "autorepressor", end_time: float = 300, n_steps: int = 150, n_traj: int = 100, device=torch.device('cpu')):
+
+def run_simulations(circuit: str = "auto", end_time: float = 50, n_steps: int = 50, n_traj: int = 10, device="cuda"):
+    device = choose_device[device]
     run_method[circuit](end_time=end_time, n_steps=n_steps,
                         n_traj=n_traj, device=device)
 

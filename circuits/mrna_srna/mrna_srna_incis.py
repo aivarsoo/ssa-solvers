@@ -10,7 +10,7 @@ from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
 cfg = {'name': 'mRNAsRNAInCis',
        'stochastic_sim_cfg': {'checkpoint_freq': 1,
                               'save_to_file': True,
-                              'trajectories_per_file': 50000,
+                              'trajectories_per_batch': 50000,
                               'path': './logs/',
                               'solver': 'direct'},
        'ode_sim_cfg': {'solver': 'RK23',
@@ -65,13 +65,6 @@ class mRNAsRNAInCis(BaseChemicalReactionSystem):
             self.params['delta_fmrna'] * pops[..., self.species['fmRNA']],
             self.params['delta_p'] * pops[..., self.species['Prot']],
         ]
-
-    def _jacobian(self, pops: np.ndarray) -> List[np.ndarray]:
-        """
-        Returns the Jacobian of the vector field for the ODE computations
-        :param pops: current population
-        """
-        return NotImplemented
 
 
 if __name__ == "__main__":

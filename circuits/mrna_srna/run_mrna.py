@@ -5,7 +5,6 @@ from circuits.mrna_srna.mrna_srna_incis import cfg
 from circuits.mrna_srna.mrna_srna_incis import mRNAsRNAInCis
 from circuits.mrna_srna.mrna_srna_intrans import cfg
 from circuits.mrna_srna.mrna_srna_intrans import mRNAsRNAInTrans
-from ssa_solvers.data_class import SimulationData
 from ssa_solvers.simulators import DeterministicSimulator
 from ssa_solvers.simulators import StochasticSimulator
 
