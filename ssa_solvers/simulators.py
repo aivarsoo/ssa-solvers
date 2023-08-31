@@ -4,8 +4,8 @@ import numpy as np
 import scipy.integrate as integrate
 import torch
 
-from .data_class import SimulationDataInCSV
-from .data_class import SimulationDataInMemory
+from ssa_solvers.data_class import SimulationDataInCSV
+from ssa_solvers.data_class import SimulationDataInMemory
 
 EPS = 1e-13
 
@@ -32,7 +32,75 @@ class DeterministicSimulator:
         return sol.y
 
 
-class StochasticSimulator:
+class BaseSimulateOneStepMixin:
+
+    def sample_time(self, propensity_values: torch.Tensor) -> torch.Tensor:
+        """
+        Sample next reaction time using exponential distirbution
+        :param propensity_values: propensities
+        :return: a sample form  Exp(1 / propensity_values)
+        """
+        q = torch.clamp(torch.rand(*propensity_values.shape,
+                        device=self.device), EPS, 1)
+        return -q.log() / propensity_values
+
+
+class SimulateOneStepDirectMixin(BaseSimulateOneStepMixin):
+
+    def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor):
+        """
+        Simulates one step of the direct Gillespie simulation method
+        :param pops:  current population values (updated in the function)
+        :param times: current time values (update in the function)
+        """
+        # Get propensities
+        cur_propensities = self.reaction_system.propensities(pops)
+        # Sample next reaction times
+        propensities_sum = cur_propensities.sum(dim=0)
+        next_times = self.sample_time(propensities_sum)
+        # Sample next reactions
+        # Normalizing propensities
+        cur_propensities /= propensities_sum
+        next_reaction_ids = self.sample_reaction(cur_propensities)
+        # Update pops
+        next_pops = torch.index_select(
+            self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
+        return pops + next_pops, times + next_times
+
+
+class SimulateOneStepFirstReactionMixin(BaseSimulateOneStepMixin):
+
+    def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor):
+        """
+        Simulates one step of the first reaction Gillespie simulation method
+        :param pops:  current population values (updated in the function)
+        :param times: current time values (updated in the function)
+        """
+        # Get propensities
+        cur_propensities = self.reaction_system.propensities(pops)
+        # Sample next reactions and reaction times
+        possible_times = self.sample_time(cur_propensities)
+        # Update time and pops
+        next_times, next_reaction_ids = torch.min(possible_times, dim=0)
+        next_pops = torch.index_select(
+            self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
+        return pops + next_pops, times + next_times
+
+    def sample_reaction(self, propensity_values: torch.Tensor) -> torch.Tensor:
+        """
+        Sample next reaction index
+        :param propensities: normalized vector of propensities
+        :return: next reaction indexes
+        """
+        n_traj = propensity_values.shape[-1]
+        q = torch.rand(n_traj, device=self.device)
+        propensities_cumsums = torch.cumsum(propensity_values, dim=0)
+        flags = (propensities_cumsums < q).type(torch.int64)
+        return torch.argmin(flags, dim=0)
+
+
+class StochasticSimulator(SimulateOneStepDirectMixin, SimulateOneStepFirstReactionMixin):
+
     def __init__(self,
                  reaction_system,
                  cfg: Dict,
@@ -41,6 +109,12 @@ class StochasticSimulator:
         self.device = device
         self.checkpoint_freq = self.cfg['stochastic_sim_cfg']['checkpoint_freq']
         self.solver = self.cfg['stochastic_sim_cfg']['solver']
+        if self.solver == 'first_reaction':
+            SimulateOneStepFirstReactionMixin.__init__(self)
+        elif self.solver == 'direct':
+            SimulateOneStepDirectMixin.__init__(self)
+        else:
+            raise NotImplementedError
         self.reaction_system = reaction_system
         self.data_class = SimulationDataInCSV if cfg['stochastic_sim_cfg'][
             'save_to_file'] else SimulationDataInMemory
@@ -110,116 +184,3 @@ class StochasticSimulator:
                 break
         if self.checkpoint_freq and iter_idx % self.checkpoint_freq != 0:
             self.data_set.add(pops, times, batch_idx=batch_idx)
-
-    def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor):
-        """
-        Chooses the method for simulation
-        :param pops: current population
-        :param times: current simulation times for the population
-        """
-        if self.solver == 'direct':
-            pops, times = self.simulate_one_step_direct(pops, times)
-        elif self.solver == 'first_reaction':
-            pops, times = self.simulate_one_step_first_reaction(pops, times)
-        else:
-            raise NotImplementedError
-        return pops, times
-
-    def simulate_one_step_first_reaction(self, pops: torch.Tensor, times: torch.Tensor):
-        """
-        Simulates one step of the first reaction Gillespie simulation method
-        :param pops:  current population values (updated in the function)
-        :param times: current time values (updated in the function)
-        """
-        # Get propensities
-        cur_propensities = self.reaction_system.propensities(pops)
-        # Sample next reactions and reaction times
-        possible_times = self.sample_time(cur_propensities + EPS)
-        # Update time and pops
-        next_times, next_reaction_ids = torch.min(possible_times, dim=0)
-        next_pops = torch.index_select(
-            self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
-        return pops + next_pops, times + next_times
-
-    def simulate_one_step_direct(self, pops: torch.Tensor, times: torch.Tensor):
-        """
-        Simulates one step of the direct Gillespie simulation method
-        :param pops:  current population values (updated in the function)
-        :param times: current time values (update in the function)
-        """
-        # Get propensities
-        cur_propensities = self.reaction_system.propensities(pops)
-        # Sample next reaction times
-        propensities_sum = cur_propensities.sum(dim=0)
-        next_times = self.sample_time(propensities_sum)
-        # Sample next reactions
-        cur_propensities /= propensities_sum  # normalizing propensities
-        next_reaction_ids = self.sample_reaction(cur_propensities)
-        # Update pops
-        next_pops = torch.index_select(
-            self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
-        return pops + next_pops, times + next_times
-
-    def sample_reaction(self, propensity_values: torch.Tensor) -> torch.Tensor:
-        """
-        Sample next reaction index
-        :param propensities: normalized vector of propensities
-        :return: next reaction indexes
-        """
-        n_traj = propensity_values.shape[-1]
-        q = torch.rand(n_traj, device=self.device)
-        propensities_cumsums = torch.cumsum(propensity_values, dim=0)
-        flags = (propensities_cumsums < q).type(torch.int64)
-        return torch.argmin(flags, dim=0)
-
-    def sample_time(self, propensity_values: torch.Tensor) -> torch.Tensor:
-        """
-        Sample next reaction time using exponential distirbution
-        :param propensity_values: propensities
-        :return: a sample form  Exp(1 / propensity_values)
-        """
-        q = torch.clamp(torch.rand(*propensity_values.shape,
-                        device=self.device), EPS, 1)
-        return -q.log() / propensity_values
-
-
-# class DirectMixin:
-
-#     def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor):
-#         """
-#         Simulates one step of the direct Gillespie simulation method
-#         :param pops:  current population values (updated in the function)
-#         :param times: current time values (update in the function)
-#         """
-#         # Get propensities
-#         cur_propensities = self.reaction_system.propensities(pops)
-#         # Sample next reaction times
-#         propensities_sum = cur_propensities.sum(dim=0)
-#         next_times = self.sample_time(propensities_sum)
-#         # Sample next reactions
-#         # Normalizing propensities
-#         cur_propensities /= propensities_sum
-#         next_reaction_ids = self.sample_reaction(cur_propensities)
-#         # Update pops
-#         next_pops = torch.index_select(
-#             self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
-#         return pops + next_pops, times + next_times
-
-# class FirstReactionMixin:
-#     def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor):
-#         """
-#         Simulates one step of the first reaction Gillespie simulation method
-#         :param pops:  current population values (updated in the function)
-#         :param times: current time values (updated in the function)
-#         """
-#         # Get propensities
-#         cur_propensities = self.reaction_system.propensities(pops)
-#         # Sample next reactions and reaction times
-#         possible_times = self.sample_time(cur_propensities)
-#         # Update time and pops
-#         next_times, next_reaction_ids = torch.min(possible_times, dim=0)
-#         next_pops = torch.index_select(
-#             self.reaction_system.stoichiometry_matrix.T, 0, next_reaction_ids)
-#         return pops + next_pops, times + next_times
-if __name__ == "__main__":
-    pass
