@@ -1,8 +1,7 @@
 from typing import Dict
 
-import numpy as np
-import scipy.integrate as integrate
 import torch
+import xitorch.integrate as integrate
 
 from ssa_solvers.data_class import SimulationDataInCSV
 from ssa_solvers.data_class import SimulationDataInMemory
@@ -19,17 +18,15 @@ class DeterministicSimulator:
         self.rtol = cfg['ode_sim_cfg']['rtol']
         self.solver = cfg['ode_sim_cfg']['solver']
 
-    def simulate(self, init_pops: np.ndarray, time_grid: np.ndarray) -> np.ndarray:
-        sol = integrate.solve_ivp(self.reaction_system.ode_fun,
-                                  t_span=[time_grid[0],
-                                          time_grid[-1]],
-                                  y0=init_pops,
+    def simulate(self, init_pops: torch.Tensor, time_grid: torch.Tensor) -> torch.Tensor:
+        sol = integrate.solve_ivp(self.reaction_system.ode_fun(),
+                                  ts=time_grid,
+                                  y0=init_pops.double(),
                                   method=self.solver,
-                                  t_eval=time_grid,
                                   atol=self.atol,
                                   rtol=self.rtol
                                   )
-        return sol.y
+        return sol.T.cpu()
 
 
 class BaseSimulateOneStepMixin:
@@ -147,6 +144,8 @@ class StochasticSimulator(SimulateOneStepDirectMixin, SimulateOneStepFirstReacti
         # making sure the size is correct
         init_pops = init_pops.flatten().view(1, -1)
         assert init_pops.shape[1] == self.reaction_system.n_species
+        # reseting the dataset
+        self.data_set.reset()
         # max trajectories per batch
         trajectories_per_batch = min(
             self.data_set.trajectories_per_batch, n_trajectories)

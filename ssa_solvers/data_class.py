@@ -7,7 +7,6 @@ from typing import Dict
 from typing import List
 
 import einops
-import numpy as np
 import pandas as pd
 import torch
 
@@ -46,26 +45,26 @@ class SimulationDataBase:
         """
         raise NotImplementedError
 
-    def process_data(self, time_grid: np.ndarray):
+    def process_data(self, time_grid: torch.Tensor):
         """
         Processes raw data to interpolate it to the time_range.
         :param time_grid: time grid for the interpolation
         """
         raise NotImplementedError
 
-    def mean_and_std(self,  time_grid: List = [0]) -> torch.Tensor:
+    def mean_and_std(self,  time_grid: torch.Tensor = torch.zeros((1,))) -> torch.Tensor:
         """
         Computes means and variances of the species of the species numbers
         :param time_range: time indexes for which we compute the statistic,
         :return: mean and variance of the pops
         """
         assert self.raw_trajectories_computed, "Please get the data before computing statistics"
-        if not (len(time_grid) == 1 and time_grid == [0]):
-            self.process_data(time_grid=time_grid)
+        if not (time_grid.shape == (1, ) and time_grid.cpu() == torch.zeros((1,))):
+            self.process_data(time_grid=time_grid.to(device=self.device))
         elif not self.trajectories_processed:
             raise ValueError("Please process the data or provide a time grid")
 
-    def _process_batch_trajectories(self, raw_times_trajectories: np.ndarray, raw_pops_trajectories: np.ndarray, time_grid: np.ndarray):
+    def _process_batch_trajectories(self, raw_times_trajectories: torch.Tensor, raw_pops_trajectories: torch.Tensor, time_grid: torch.Tensor):
         """
         Process a batch of trajectories to get the values on a specified time grid
         """
@@ -122,9 +121,9 @@ class SimulationDataInCSV(SimulationDataBase):
         end_idx = batch_idx * self.trajectories_per_batch + \
             min(self.trajectories_per_batch, n_runs)
         self._save_to_csv(
-            pops=pops.cpu().numpy(),
-            times=times.cpu().numpy(),
-            run_ids=np.arange(start_idx, end_idx),
+            pops=pops,
+            times=times,
+            run_ids=torch.arange(start_idx, end_idx, device=self.device),
             filename=os.path.join(self.raw_data_path, str(
                 batch_idx) + "_" + self.raw_data_filename),
             write_header=True)
@@ -141,14 +140,14 @@ class SimulationDataInCSV(SimulationDataBase):
         end_idx = batch_idx * self.trajectories_per_batch + \
             min(self.trajectories_per_batch, n_runs)
         self._save_to_csv(
-            pops=pops.cpu().numpy(),
-            times=times.cpu().numpy(),
-            run_ids=np.arange(start_idx, end_idx),
+            pops=pops,
+            times=times,
+            run_ids=torch.arange(start_idx, end_idx, device=self.device),
             filename=os.path.join(self.raw_data_path, str(
                 batch_idx) + "_" + self.raw_data_filename),
             write_header=False)
 
-    def process_data(self, time_grid: List):
+    def process_data(self, time_grid: torch.Tensor):
         """
         Processes raw data to interpolate it to the time_range.
         :param time_grid: time grid for the interpolation
@@ -158,17 +157,21 @@ class SimulationDataInCSV(SimulationDataBase):
         files = os.listdir(self.raw_data_path)
         for file_idx, file_ in enumerate(files):
             filename = os.path.join(self.raw_data_path, file_)
-            runs_ids = np.unique(pd.read_csv(filename, usecols=["run_id"]))
+            runs_ids = torch.unique(torch.tensor(pd.read_csv(filename, usecols=["run_id"]).values, device=self.device))
             runs_ids.sort()
-            raw_times_trajectories = einops.rearrange(pd.read_csv(
-                filename, usecols=["time"]).values, "(t h) m -> h (t m) ", h=runs_ids.shape[0])
-            raw_pops_trajectories = einops.rearrange(pd.read_csv(
-                filename, usecols=self.species_idx).values, "(t h) s -> h s t", h=runs_ids.shape[0], s=self.n_species)
+            raw_times_trajectories = einops.rearrange(
+                torch.tensor(pd.read_csv(filename, usecols=[
+                             "time"]).values, device=self.device),
+                "(t h) m -> h (t m)", h=runs_ids.shape[0])
+            raw_pops_trajectories = einops.rearrange(
+                torch.tensor(pd.read_csv(
+                    filename, usecols=self.species_idx).values, device=self.device),
+                "(t h) s -> h s t", h=runs_ids.shape[0], s=self.n_species)
             self._process_and_save_batch_trajectories(
                 raw_times_trajectories, raw_pops_trajectories, time_grid, runs_ids=runs_ids, write_header=file_idx == 0)
         self.trajectories_processed = True
 
-    def mean_and_std(self, time_grid: List = [0]) -> torch.Tensor:
+    def mean_and_std(self, time_grid: torch.Tensor = torch.zeros((1,))) -> torch.Tensor:
         """
         Computes means and variances of the species of the species numbers
         :param time_range: time indexes for which we compute the statistic,
@@ -177,24 +180,34 @@ class SimulationDataInCSV(SimulationDataBase):
         super().mean_and_std(time_grid=time_grid)
         files = os.listdir(self.processed_data_path)
         time_length = len(files)
-        _mean = np.zeros((self.n_species, time_length))
-        _std = np.zeros((self.n_species, time_length))
+        _mean = torch.zeros((self.n_species, time_length), device=self.device)
+        _std = torch.zeros((self.n_species, time_length), device=self.device)
         for file in files:
             t_idx = int(file.split("_")[0])
             df = pd.read_csv(os.path.join(
                 self.processed_data_path, file), usecols=self.species_idx)
-            _mean[:, t_idx] = df.mean().values
-            _std[:, t_idx] = df.std().values
-        return _mean, _std
+            _mean[:, t_idx] = torch.as_tensor(
+                df.mean().values, device=self.device)
+            _std[:, t_idx] = torch.as_tensor(
+                df.std().values, device=self.device)
+        return _mean.cpu(), _std.cpu()
 
     # helper files
-    def _process_and_save_batch_trajectories(self, raw_times_trajectories: np.ndarray, raw_pops_trajectories: np.ndarray, time_grid: np.ndarray, runs_ids: np.ndarray, write_header: bool = False):
+    def _process_and_save_batch_trajectories(
+            self,
+            raw_times_trajectories: torch.Tensor,
+            raw_pops_trajectories: torch.Tensor,
+            time_grid: torch.Tensor,
+            runs_ids: torch.Tensor,
+            write_header: bool = False
+    ):
         """
         Process a batch of trajectories to get the values on a specified time grid
         """
         n_traj = raw_times_trajectories.shape[0]
-        all_traj = np.arange(n_traj)
-        time_idxs = np.zeros((n_traj, ), dtype=np.int64)
+        all_traj = torch.arange(n_traj, device=self.device)
+        time_idxs = torch.zeros(
+            (n_traj, ), dtype=torch.int64, device=self.device)
         cur_pops = raw_pops_trajectories[..., 0]
         for t_idx, cur_time in enumerate(time_grid):
             # figure out which times need updating
@@ -208,14 +221,20 @@ class SimulationDataInCSV(SimulationDataBase):
                     raw_times_trajectories[all_traj, time_idxs] <= cur_time)
             self._save_to_csv(
                 pops=cur_pops,
-                times=cur_time*np.ones((n_traj,)),
+                times=cur_time*torch.ones((n_traj,), device=self.device),
                 run_ids=runs_ids,
                 filename=os.path.join(
                     self.processed_data_path,
                     str(t_idx) + "_" + self.processed_data_filename),
                 write_header=write_header)
 
-    def _save_to_csv(self, pops: np.ndarray, times: np.ndarray, run_ids: np.ndarray, filename: str, write_header: bool = False):
+    def _save_to_csv(
+            self,
+            pops: torch.Tensor,
+            times: torch.Tensor,
+            run_ids: torch.Tensor,
+            filename: str,
+            write_header: bool = False):
         """
         Save data to csv
         :param pops: population evolution
@@ -225,10 +244,10 @@ class SimulationDataInCSV(SimulationDataBase):
         :param write_header: write the first row (column indexes) in the file
         """
         df = pd.concat([
-            pd.DataFrame(pops),
+            pd.DataFrame(pops.cpu()),
             pd.DataFrame({
-                "time": times,
-                "run_id": run_ids})
+                "time": times.cpu(),
+                "run_id": run_ids.cpu()})
         ], axis=1)
         df.to_csv(filename, mode="a", header=write_header, index=False)
 
@@ -271,23 +290,22 @@ class SimulationDataInMemory(SimulationDataBase):
         self.raw_times_trajectories = torch.cat(
             [self.raw_times_trajectories, times], dim=-1)
 
-    def process_data(self, time_grid: List):
+    def process_data(self, time_grid: torch.Tensor):
         """
         Processes raw data to interpolate it to the time_range.
         :param time_grid: time grid for the interpolation
         """
         assert self.raw_trajectories_computed, "Please provide data"
         assert self.n_species == self.raw_pops_trajectories.shape[-2]
-        time_grid = torch.Tensor(time_grid).to(device=self.device)
         self._process_batch_trajectories(
             self.raw_times_trajectories, self.raw_pops_trajectories, time_grid)
         self.trajectories_processed = True
 
-    def mean_and_std(self, time_grid: List = [0]) -> torch.Tensor:
+    def mean_and_std(self, time_grid: torch.Tensor = torch.zeros((1,))) -> torch.Tensor:
         """
         Computes means and variances of the species of the species numbers
         :return: mean and variance of the pops
         """
         super().mean_and_std(time_grid=time_grid)
         float_data = self.processed_pops_trajectories.float()
-        return torch.mean(float_data, dim=0).cpu().numpy(), torch.std(float_data, dim=0).cpu().numpy()
+        return torch.mean(float_data, dim=0).cpu(), torch.std(float_data, dim=0).cpu()

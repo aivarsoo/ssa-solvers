@@ -13,7 +13,8 @@ torch.set_default_tensor_type(torch.FloatTensor)
 
 
 def run_auto(end_time: float = 300, n_steps: int = 150, n_traj: int = 100, device=torch.device('cpu')):
-    time_grid = list(range(0, end_time, int(end_time / n_steps)))
+    time_grid = torch.arange(0, end_time, int(
+        end_time / n_steps), device=device)
     cfg['stochastic_sim_cfg'].update(
         dict(save_to_file=True, trajectories_per_batch=50000))
 
@@ -31,8 +32,8 @@ def run_auto(end_time: float = 300, n_steps: int = 150, n_traj: int = 100, devic
     init_pops = torch.zeros(
         (reaction_system_incis.n_species, ), dtype=torch.int64, device=device)
     print("starting simulation")
-    ode_res_incis = ode_simulator.simulate(init_pops=np.zeros(
-        (reaction_system_incis.n_species,)), time_grid=time_grid)
+    ode_res_incis = ode_simulator.simulate(init_pops=torch.zeros(
+        (reaction_system_incis.n_species,), device=device), time_grid=time_grid)
     ssa_simulator_incis.simulate(
         init_pops=init_pops, end_time=end_time, n_trajectories=n_traj)
     print("computing mean and std")
@@ -40,6 +41,8 @@ def run_auto(end_time: float = 300, n_steps: int = 150, n_traj: int = 100, devic
         time_grid=time_grid)
 
     species_idx_incis = 1
+    time_grid = time_grid.cpu()
+
     plt.figure()
     plt.plot(
         time_grid, means_incis[species_idx_incis, :], 'b', label='Mean SSA (in cis)')

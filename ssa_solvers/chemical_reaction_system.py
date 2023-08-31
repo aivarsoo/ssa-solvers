@@ -1,11 +1,11 @@
 from typing import List
 
+import einops
 import numpy as np
 import torch
 
 from ssa_solvers.utils import is_matrix_int_type
 from ssa_solvers.utils import is_tensor_int_type
-# Array = Union[torch.Tensor, np.ndarray]
 
 
 class BaseChemicalReactionSystem:
@@ -25,21 +25,17 @@ class BaseChemicalReactionSystem:
     def propensities(self, pops: torch.Tensor) -> torch.Tensor:
         return torch.vstack(self._propensities(pops))
 
-    def ode_fun(self, time: int, pops: np.ndarray) -> np.ndarray:
-        return self._stoichiometry_matrix_np @ np.vstack(self._propensities_np(pops)).squeeze()
+    def ode_fun(self):
+        return lambda time, pops: einops.einsum(self._stoichiometry_matrix.double(), self.propensities(pops), "m n, n k -> m k")
 
-    def ode_fun_jac(self, time: int, pops: np.ndarray) -> np.ndarray:
-        return self._jacobian(pops)
-
-    def _propensities(self, pops: torch.Tensor) -> List[np.ndarray]:
+    def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
         "Returns the vector of propensities for torch."
         raise NotImplementedError
 
-    def _propensities_np(self, pops: np.ndarray) -> List[np.ndarray]:
-        "Returns the vector of propensities for numpy."
-        raise NotImplementedError
+    def ode_fun_jac(self, time: int, pops: torch.Tensor) -> torch.Tensor:
+        return self._jacobian(pops)
 
-    def _jacobian(self, pops: np.ndarray):
+    def _jacobian(self, pops: torch.Tensor):
         "Returns the Jacobian of the vector field."
         raise NotImplementedError
 
@@ -88,4 +84,3 @@ class BaseChemicalReactionSystem:
     @stoichiometry_matrix.setter
     def stoichiometry_matrix(self, stoichiometry_matrix: torch.Tensor):
         self._stoichiometry_matrix = stoichiometry_matrix
-        self._stoichiometry_matrix_np = self._stoichiometry_matrix.cpu().numpy()
