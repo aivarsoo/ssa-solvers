@@ -4,7 +4,6 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
-from typing import List
 
 import einops
 import pandas as pd
@@ -20,10 +19,8 @@ class SimulationDataBase:
         self.species_idx = [str(idx) for idx in range(self.n_species)]
         path = Path(cfg['stochastic_sim_cfg']['path'])
         timestamp = datetime.now()
-        if not os.path.exists(path):
-            os.mkdir(path)
-        self.log_path = path / str(timestamp)
-        os.mkdir(self.log_path)
+        self.log_path = path / cfg['name'] / str(timestamp)[:-4]
+        os.makedirs(self.log_path)
         self.raw_trajectories_computed = False
         self.trajectories_processed = False
 
@@ -124,8 +121,8 @@ class SimulationDataInCSV(SimulationDataBase):
             pops=pops,
             times=times,
             run_ids=torch.arange(start_idx, end_idx, device=self.device),
-            filename=os.path.join(self.raw_data_path, str(
-                batch_idx) + "_" + self.raw_data_filename),
+            filename=self.raw_data_path /
+            Path(str(batch_idx) + "_" + self.raw_data_filename),
             write_header=True)
         self.raw_trajectories_computed = True
 
@@ -143,8 +140,8 @@ class SimulationDataInCSV(SimulationDataBase):
             pops=pops,
             times=times,
             run_ids=torch.arange(start_idx, end_idx, device=self.device),
-            filename=os.path.join(self.raw_data_path, str(
-                batch_idx) + "_" + self.raw_data_filename),
+            filename=self.raw_data_path /
+            Path(str(batch_idx) + "_" + self.raw_data_filename),
             write_header=False)
 
     def process_data(self, time_grid: torch.Tensor):
@@ -156,8 +153,9 @@ class SimulationDataInCSV(SimulationDataBase):
             self.log_path, self.raw_data_filename)), "Please provide data"
         files = os.listdir(self.raw_data_path)
         for file_idx, file_ in enumerate(files):
-            filename = os.path.join(self.raw_data_path, file_)
-            runs_ids = torch.unique(torch.tensor(pd.read_csv(filename, usecols=["run_id"]).values, device=self.device))
+            filename = self.raw_data_path / file_
+            runs_ids = torch.unique(torch.tensor(pd.read_csv(
+                filename, usecols=["run_id"]).values, device=self.device))
             runs_ids.sort()
             raw_times_trajectories = einops.rearrange(
                 torch.tensor(pd.read_csv(filename, usecols=[
@@ -184,8 +182,8 @@ class SimulationDataInCSV(SimulationDataBase):
         _std = torch.zeros((self.n_species, time_length), device=self.device)
         for file in files:
             t_idx = int(file.split("_")[0])
-            df = pd.read_csv(os.path.join(
-                self.processed_data_path, file), usecols=self.species_idx)
+            df = pd.read_csv(self.processed_data_path /
+                             file, usecols=self.species_idx)
             _mean[:, t_idx] = torch.as_tensor(
                 df.mean().values, device=self.device)
             _std[:, t_idx] = torch.as_tensor(
@@ -223,9 +221,8 @@ class SimulationDataInCSV(SimulationDataBase):
                 pops=cur_pops,
                 times=cur_time*torch.ones((n_traj,), device=self.device),
                 run_ids=runs_ids,
-                filename=os.path.join(
-                    self.processed_data_path,
-                    str(t_idx) + "_" + self.processed_data_filename),
+                filename=self.processed_data_path /
+                Path(str(t_idx) + "_" + self.processed_data_filename),
                 write_header=write_header)
 
     def _save_to_csv(
