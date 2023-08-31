@@ -7,6 +7,8 @@ import torch
 from .data_class import SimulationDataInCSV
 from .data_class import SimulationDataInMemory
 
+EPS = 1e-13
+
 
 class DeterministicSimulator:
     def __init__(self,
@@ -71,27 +73,22 @@ class StochasticSimulator:
         # making sure the size is correct
         init_pops = init_pops.flatten().view(1, -1)
         assert init_pops.shape[1] == self.reaction_system.n_species
-        # if self.data_set.save_to_file:
+        # max trajectories per batch
+        trajectories_per_batch = min(
+            self.data_set.trajectories_per_batch, n_trajectories)
         # splitting simulation into batches and saving the results on disk
-        pops = torch.repeat_interleave(
-            init_pops, self.data_set.trajectories_per_batch, dim=0)
-        times = torch.zeros(
-            (self.data_set.trajectories_per_batch, ), device=self.device)
-        for batch_idx in range(n_trajectories // self.data_set.trajectories_per_batch):
+        for batch_idx in range(n_trajectories // trajectories_per_batch):
+            pops = torch.repeat_interleave(
+                init_pops, trajectories_per_batch, dim=0)
+            times = torch.zeros((trajectories_per_batch, ), device=self.device)
             self.simulate_trajectories(pops, times, batch_idx=batch_idx)
-        if n_trajectories % self.data_set.trajectories_per_batch > 0:
-            n_trajs = min(self.data_set.trajectories_per_batch,
-                          n_trajectories % self.data_set.trajectories_per_batch)
+        if n_trajectories % trajectories_per_batch > 0:
+            n_trajs = min(trajectories_per_batch,
+                          n_trajectories % trajectories_per_batch)
             self.simulate_trajectories(
                 torch.repeat_interleave(init_pops, n_trajs, dim=0),
                 torch.zeros((n_trajs, ), device=self.device),
-                batch_idx=n_trajectories // self.data_set.trajectories_per_batch)
-        # else:
-        #     # keeping everything in memmory (one batch)
-        #     pops = torch.repeat_interleave(init_pops, n_trajectories, dim=0)
-        #     times = torch.zeros((n_trajectories, ), device=self.device)
-        #     self.data_set.initialize(pops, times, batch_idx=0)
-        #     self.simulate_trajectories(pops, times)
+                batch_idx=n_trajectories // trajectories_per_batch)
 
     def simulate_trajectories(self, pops: torch.Tensor, times: torch.Tensor, batch_idx=0):
         """"
@@ -137,7 +134,7 @@ class StochasticSimulator:
         # Get propensities
         cur_propensities = self.reaction_system.propensities(pops)
         # Sample next reactions and reaction times
-        possible_times = self.sample_time(cur_propensities)
+        possible_times = self.sample_time(cur_propensities + EPS)
         # Update time and pops
         next_times, next_reaction_ids = torch.min(possible_times, dim=0)
         next_pops = torch.index_select(
@@ -181,7 +178,8 @@ class StochasticSimulator:
         :param propensity_values: propensities
         :return: a sample form  Exp(1 / propensity_values)
         """
-        q = torch.rand(*propensity_values.shape, device=self.device)
+        q = torch.clamp(torch.rand(*propensity_values.shape,
+                        device=self.device), EPS, 1)
         return -q.log() / propensity_values
 
 

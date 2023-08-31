@@ -13,9 +13,9 @@ torch.set_default_tensor_type(torch.FloatTensor)
 
 
 def run_auto(end_time: float = 300, n_steps: int = 150, n_traj: int = 100, device=torch.device('cpu')):
-    time_grid = np.arange(0, end_time, end_time / n_steps)
+    time_grid = list(range(0, end_time, int(end_time / n_steps)))
     cfg['stochastic_sim_cfg'].update(
-        dict(save_to_file=True, trajectories_per_file=50000))
+        dict(save_to_file=True, trajectories_per_batch=50000))
 
     ode_simulator = DeterministicSimulator(
         reaction_system=TetRsRNAInCis(device=device),

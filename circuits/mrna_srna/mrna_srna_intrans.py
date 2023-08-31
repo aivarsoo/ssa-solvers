@@ -10,7 +10,7 @@ from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
 cfg = {'name': 'mRNAsRNAInTrans',
        'stochastic_sim_cfg': {'checkpoint_freq': 1,
                               'save_to_file': True,
-                              'trajectories_per_file': 50000,
+                              'trajectories_per_batch': 50000,
                               'path': './logs/',
                               'solver': 'direct'},
        'ode_sim_cfg': {'solver': 'RK23',

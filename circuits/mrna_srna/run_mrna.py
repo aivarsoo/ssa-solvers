@@ -11,10 +11,13 @@ from ssa_solvers.simulators import StochasticSimulator
 torch.set_default_tensor_type(torch.DoubleTensor)
 
 
-def run_mrna(end_time: float = 300, n_steps: int = 150, n_traj: int = 100, device=torch.device('cpu')):
-    time_grid = np.arange(0, end_time, end_time / n_steps)
+def run_mrna(end_time: float = 300, n_steps: int = 100, n_traj: int = 2, device=torch.device('cpu')):
+    time_grid = list(range(0, end_time, int(end_time / n_steps)))
     cfg['stochastic_sim_cfg'].update(
-        dict(save_to_file=True, trajectories_per_file=50000))
+        dict(
+            save_to_file=False,
+            trajectories_per_batch=50000,
+            solver='first_reaction'))
 
     reaction_system_incis = mRNAsRNAInCis(device=torch.device("cpu"))
     ode_simulator = DeterministicSimulator(

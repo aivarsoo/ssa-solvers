@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
@@ -59,7 +60,7 @@ class SimulationDataBase:
         :return: mean and variance of the pops
         """
         assert self.raw_trajectories_computed, "Please get the data before computing statistics"
-        if time_grid != [0]:
+        if not (len(time_grid) == 1 and time_grid == [0]):
             self.process_data(time_grid=time_grid)
         elif not self.trajectories_processed:
             raise ValueError("Please process the data or provide a time grid")
@@ -237,7 +238,7 @@ class SimulationDataInMemory(SimulationDataBase):
         super().__init__(n_species, device, cfg)
 
         # keeping in memory
-        self.trajectories_per_batch = 1
+        self.trajectories_per_batch = sys.maxsize
         self.raw_times_trajectories = torch.Tensor([])
         self.raw_pops_trajectories = torch.Tensor([])
         self.processed_times_trajectories = torch.Tensor([])
