@@ -11,6 +11,10 @@ import torch
 
 
 class SimulationDataBase:
+    """
+    Base class for storing and processing data from stochastic simulations
+    """
+
     def __init__(self, n_species: int, device=torch.device("cpu"), cfg: Dict = dict()):
         self.device = device
         self.end_time = -1
@@ -25,6 +29,7 @@ class SimulationDataBase:
         self.trajectories_processed = False
 
     def reset(self):
+        "Resets the data set"
         self.raw_trajectories_computed = False
         self.trajectories_processed = False
 
@@ -63,7 +68,7 @@ class SimulationDataBase:
 
     def _process_batch_trajectories(self, raw_times_trajectories: torch.Tensor, raw_pops_trajectories: torch.Tensor, time_grid: torch.Tensor):
         """
-        Process a batch of trajectories to get the values on a specified time grid
+        Processes a batch of trajectories to get the values on a specified time grid
         """
         n_traj = raw_times_trajectories.shape[0]
         self.processed_times_trajectories = time_grid
@@ -88,6 +93,10 @@ class SimulationDataBase:
 
 
 class SimulationDataInCSV(SimulationDataBase):
+    """
+    The class for storing the stochastic simulations in CSV file and processing from the file
+    """
+
     def __init__(self, n_species: int, device=torch.device("cpu"), cfg: Dict = dict()):
         super().__init__(n_species, device, cfg)
 
@@ -104,6 +113,7 @@ class SimulationDataInCSV(SimulationDataBase):
             json.dump(cfg, fp)
 
     def reset(self):
+        "Resets the data set"
         super().reset()
         if os.path.exists(self.raw_data_path):
             for file in os.listdir(self.raw_data_path):
@@ -113,6 +123,9 @@ class SimulationDataInCSV(SimulationDataBase):
                 os.remove(self.processed_data_path / file)
 
     def initialize(self, pops: torch.Tensor, times: torch.Tensor, batch_idx: int = 0):
+        """
+        Initializes the data set data structure
+        """
         n_runs = times.shape[0]
         start_idx = batch_idx * self.trajectories_per_batch
         end_idx = batch_idx * self.trajectories_per_batch + \
@@ -261,6 +274,7 @@ class SimulationDataInMemory(SimulationDataBase):
         self.processed_pops_trajectories = torch.Tensor([])
 
     def reset(self):
+        "Resets the data set"
         super().reset()
         self.raw_times_trajectories = torch.Tensor([])
         self.raw_pops_trajectories = torch.Tensor([])
@@ -268,6 +282,9 @@ class SimulationDataInMemory(SimulationDataBase):
         self.processed_pops_trajectories = torch.Tensor([])
 
     def initialize(self, pops: torch.Tensor, times: torch.Tensor, batch_idx: int = 0):
+        """
+        Initializes the data set data structure
+        """
         pops = torch.unsqueeze(pops, -1)
         times = torch.unsqueeze(times, -1)
         self.raw_pops_trajectories = pops

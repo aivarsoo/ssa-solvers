@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 
 from circuits.auto_repressor.tetr_srna_incis import cfg

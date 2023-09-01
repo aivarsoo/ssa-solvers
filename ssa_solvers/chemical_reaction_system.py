@@ -1,7 +1,6 @@
 from typing import List
 
 import einops
-import numpy as np
 import torch
 
 from ssa_solvers.utils import is_matrix_int_type
@@ -22,21 +21,30 @@ class BaseChemicalReactionSystem:
         assert self.n_reactions == self.propensities(torch.zeros(self.n_species, device=self.device)).shape[0], \
             "Propensity function dimension do not match stochiometry"
 
-    def propensities(self, pops: torch.Tensor) -> torch.Tensor:
-        return torch.vstack(self._propensities(pops))
-
     def ode_fun(self):
-        return lambda time, pops: einops.einsum(self._stoichiometry_matrix.double(), self.propensities(pops), "m n, n k -> m k")
+        ":return: the function computing the vector field for the ODE simulation"
+        return lambda time, pops: einops.einsum(self.stoichiometry_matrix.double(), self.propensities(pops), "m n, n k -> m k")
 
-    def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
-        "Returns the vector of propensities for torch."
+    def propensities(self, pops: torch.Tensor) -> torch.Tensor:
+        """
+        :param pops: current population number
+        :return: the vector of propensities
+        """
         raise NotImplementedError
 
     def ode_fun_jac(self, time: int, pops: torch.Tensor) -> torch.Tensor:
-        return self._jacobian(pops)
+        """
+        :param time: current time
+        :param pops: current population number
+        :return: the function computing the Jacobian of the vector field for the ODE simulation
+        """
+       return lambda time, pops: self._jacobian(pops)
 
     def _jacobian(self, pops: torch.Tensor):
-        "Returns the Jacobian of the vector field."
+        """
+        :param pops: current population number
+        :return: the Jacobian of the vector field.
+        """
         raise NotImplementedError
 
     @property
@@ -79,6 +87,7 @@ class BaseChemicalReactionSystem:
 
     @property
     def stoichiometry_matrix(self):
+        "Stoichiometric matrix property"
         return self._stoichiometry_matrix
 
     @stoichiometry_matrix.setter

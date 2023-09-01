@@ -4,6 +4,8 @@ import numpy as np
 import scipy.interpolate as interpolate
 import torch
 
+EPS = 1e-13
+
 
 def set_overrides(cfg, cfg_overrides):
     for key in cfg_overrides.keys():

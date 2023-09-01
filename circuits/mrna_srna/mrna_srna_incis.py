@@ -34,13 +34,13 @@ class mRNAsRNAInCis(BaseChemicalReactionSystem):
         ], dtype=torch.int64, device=device)
         super(mRNAsRNAInCis, self).__init__(device=device)
 
-    def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
+    def propensities(self, pops: torch.Tensor) -> torch.Tensor:
         """
-        Composes a list of propensity functions
+        Composes a vector of propensity functions
         :params pops: current population
-        :return: list of propensities
+        :return: vector of propensities
         """
-        return [
+        return torch.vstack([
             self.params['volume'] * self.params['beta_fmrna'] *
             torch.ones(pops.shape[:-1], device=self.device),
             self.params['k_t'] * pops[..., self.species['fmRNA']],
@@ -48,30 +48,4 @@ class mRNAsRNAInCis(BaseChemicalReactionSystem):
                                                                 self.species['fmRNA']] * (pops[..., self.species['fmRNA']] - 1) / 2.0,
             self.params['delta_fmrna'] * pops[..., self.species['fmRNA']],
             self.params['delta_p'] * pops[..., self.species['Prot']],
-        ]
-
-    def _propensities_np(self, pops: np.ndarray) -> List[np.ndarray]:
-        """
-        Composes a list of propensity functions
-        :params pops: current population
-        :return: list of propensities
-        """
-        return [
-            self.params['volume'] * self.params['beta_fmrna'] *
-            np.ones(pops.shape[:-1]),
-            self.params['k_t'] * pops[..., self.species['fmRNA']],
-            self.params['k_rep'] / self.params['volume'] * pops[...,
-                                                                self.species['fmRNA']] * (pops[..., self.species['fmRNA']] - 1) / 2.0,
-            self.params['delta_fmrna'] * pops[..., self.species['fmRNA']],
-            self.params['delta_p'] * pops[..., self.species['Prot']],
-        ]
-
-
-if __name__ == "__main__":
-    system = mRNAsRNAInCis()
-    n_species = len(system.species.species_names)
-    n_trajs = 5
-    pops = torch.rand((n_trajs, n_species))
-    n_reactions = system.propensities(pops).shape[0]
-    assert system.stoichiometry_matrix.shape == (n_species, n_reactions), \
-        print(n_reactions, n_species, system.stoichiometry_matrix.shape)
+        ])

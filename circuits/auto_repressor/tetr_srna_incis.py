@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import List
 
-import numpy as np
 import torch
 
 from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
@@ -34,29 +33,21 @@ class TetRsRNAInCis(BaseChemicalReactionSystem):
         ], dtype=torch.int64, device=device)
         super(TetRsRNAInCis, self).__init__(device=device)
 
-    def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
+    def propensities(self, pops: torch.Tensor) -> torch.Tensor:
+        """
+        Composes a vector of propensity functions
+        :params pops: current population
+        :return: vector of propensities
+        """
         param1 = self.params['K2'] / self.params['volume'] / \
             (1 + self.params['aTc'] / self.params['KD'])
         ptet_tx_init = self.params['TX_ptet'] / (self.params['K1'] + (
             1 + pops[..., self.species['TetR']] * param1) ** 2)
-        return [
+        return torch.vstack([
             self.params['volume'] * ptet_tx_init,
             self.params['k_t'] * pops[..., self.species['fmRNA']],
             self.params['k_rep'] / self.params['volume'] * pops[...,
                                                                 self.species['fmRNA']] * (pops[..., self.species['fmRNA']] - 1) / 2.0,
             self.params['delta_fmrna'] * pops[..., self.species['fmRNA']],
             self.params['delta_tetr'] * pops[..., self.species['TetR']],
-        ]
-
-    def _propensities_np(self, pops: np.ndarray) -> List[np.ndarray]:
-        return self._propensities(pops)
-
-
-if __name__ == "__main__":
-    system = TetRsRNAInCis()
-    n_species = len(system.species.species_names)
-    n_trajs = 5
-    pops = torch.rand((n_trajs, n_species))
-    n_reactions = system.propensities(pops).shape[0]
-    assert system.stoichiometry_matrix.shape == (n_species, n_reactions), \
-        print(n_reactions, n_species, system.stoichiometry_matrix.shape)
+        ])

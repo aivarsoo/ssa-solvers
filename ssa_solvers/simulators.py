@@ -1,18 +1,23 @@
 from typing import Dict
+from typing import Tuple
 
 import torch
 import xitorch.integrate as integrate
 
+from ssa_solvers.chemical_reacrion_system import BaseChemicalReactionSystem
 from ssa_solvers.data_class import SimulationDataInCSV
 from ssa_solvers.data_class import SimulationDataInMemory
-
-EPS = 1e-13
+from ssa_solvers.utils import EPS
 
 
 class DeterministicSimulator:
     def __init__(self,
-                 reaction_system,
-                 cfg: Dict) -> None:
+                 reaction_system: BaseChemicalReactionSystem,
+                 cfg: Dict):
+        """
+        :reaction_system: reaction system class
+        :cfg: configuration dictionary
+        """
         self.reaction_system = reaction_system
         self.atol = cfg['ode_sim_cfg']['atol']
         self.rtol = cfg['ode_sim_cfg']['rtol']
@@ -30,6 +35,7 @@ class DeterministicSimulator:
 
 
 class BaseSimulateOneStepMixin:
+    "Base class for mixing in a one step of a Gillespie simulation method"
 
     def sample_time(self, propensity_values: torch.Tensor) -> torch.Tensor:
         """
@@ -43,12 +49,14 @@ class BaseSimulateOneStepMixin:
 
 
 class SimulateOneStepDirectMixin(BaseSimulateOneStepMixin):
+    "Mixes in a one step simulation using the direct Gillespie simulation method"
 
-    def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor):
+    def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor) -> Tuple(torch.Tensor, torch.Tensor):
         """
         Simulates one step of the direct Gillespie simulation method
         :param pops:  current population values (updated in the function)
         :param times: current time values (update in the function)
+        :return: next population values and next times values
         """
         # Get propensities
         cur_propensities = self.reaction_system.propensities(pops)
@@ -66,6 +74,7 @@ class SimulateOneStepDirectMixin(BaseSimulateOneStepMixin):
 
 
 class SimulateOneStepFirstReactionMixin(BaseSimulateOneStepMixin):
+    "Mixes in a one step simulation using the first reaction Gillespie simulation method"
 
     def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor):
         """
@@ -99,9 +108,14 @@ class SimulateOneStepFirstReactionMixin(BaseSimulateOneStepMixin):
 class StochasticSimulator(SimulateOneStepDirectMixin, SimulateOneStepFirstReactionMixin):
 
     def __init__(self,
-                 reaction_system,
+                 reaction_system: BaseChemicalReactionSystem,
                  cfg: Dict,
-                 device=torch.device("cpu")) -> None:
+                 device=torch.device("cpu")):
+        """
+        :reaction_system: reaction system class
+        :cfg: configuration dictionary
+        :device: torch.device("cpu") or torch.device("cuda:0")
+        """
         self.cfg = cfg
         self.device = device
         self.checkpoint_freq = self.cfg['stochastic_sim_cfg']['checkpoint_freq']

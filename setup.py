@@ -3,10 +3,9 @@ from setuptools import setup
 setup(
     name='ssa-solvers',
     version='0.0.1',
-    description='A minimalistic Python package for simulating stochastic Master equations',
+    description='A small Python package for simulating stochastic Master equations using Pytorch',
     url='https://github.com/aivarsoo/ssa-solvers',
     author='Aivar Sootla',
-    author_email='aivar.sootla@gmail.com',
     license='MIT',
     packages=['ssa_solvers'],
     install_requires=['torch==2.0.0',
@@ -23,10 +22,9 @@ setup(
                       ],
 
     classifiers=[
-        'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.10',
     ],
 )

@@ -4,7 +4,6 @@ import shutil
 import unittest
 import warnings
 
-import numpy as np
 import torch
 from test_mrna.mrna_srna_incis import cfg
 from test_mrna.mrna_srna_incis import mRNAsRNAInCis
@@ -34,11 +33,10 @@ class TestSSASolver(unittest.TestCase):
                                end_time=end_time, n_trajectories=n_traj)
         time_grid = torch.as_tensor([0, 10, end_time], device=device)
         means, _ = ssa_simulator.data_set.mean_and_std(time_grid=time_grid)
+        shutil.rmtree(ssa_simulator.log_path)
         if torch.abs(means[0, -1] - torch.tensor([2.38])) > 0.2 or torch.abs(means[1, -1] - torch.tensor([101.9])) > 2:
-            shutil.rmtree(ssa_simulator.log_path)
             raise ValueError(
                 "This may indicate that the stochastic simulation is not working properly. Increase the number of trajectories")
-        shutil.rmtree(ssa_simulator.log_path)
 
     def test_simulation_ssa_direct_memory_cpu(self):
         device = torch.device("cpu")
@@ -129,11 +127,10 @@ class TestSSASolver(unittest.TestCase):
         time_grid = torch.as_tensor([0, 10, end_time], device=device)
         ssa_simulator.data_set.process_data(time_grid=time_grid)
         means, _ = ssa_simulator.data_set.mean_and_std()
+        shutil.rmtree(ssa_simulator.log_path)
         if torch.abs(means[0, -1] - torch.tensor([2.38])) > 0.2 or torch.abs(means[1, -1] - torch.tensor([101.9])) > 2:
-            shutil.rmtree(ssa_simulator.log_path)
             raise ValueError(
                 "This may indicate that the stochastic simulation is not working properly. Increase the number of trajectories")
-        shutil.rmtree(ssa_simulator.log_path)
 
     def test_simulation_ode(self):
 

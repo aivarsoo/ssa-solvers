@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 from circuits.mrna_srna.mrna_srna_incis import cfg

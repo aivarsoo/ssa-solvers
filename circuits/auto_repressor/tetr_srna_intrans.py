@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import List
 
-import numpy as np
 import torch
 
 from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
@@ -34,12 +33,17 @@ class TetRsRNAInTrans(BaseChemicalReactionSystem):
         ], dtype=torch.int64, device=device)
         super(TetRsRNAInTrans, self).__init__(device=device)
 
-    def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
+    def propensities(self, pops: torch.Tensor) -> torch.Tensor:
+        """
+        Composes a vector of propensity functions
+        :params pops: current population
+        :return: vector of propensities
+        """
         param1 = self.params['K2'] / self.params['volume'] / \
             (1 + self.params['aTc'] / self.params['KD'])
         ptet_tx_init = self.params['TX_ptet'] / (self.params['K1'] + (torch.ones(
             pops.shape[:-1],  device=self.device) + pops[..., self.species['TetR']] * param1) ** 2)
-        return [
+        return torch.vstack([
             self.params['volume'] * ptet_tx_init,
             self.params['volume'] * ptet_tx_init,
             self.params['k_t'] * pops[..., self.species['mRNA']],
@@ -48,30 +52,4 @@ class TetRsRNAInTrans(BaseChemicalReactionSystem):
             self.params['delta_mrna'] * pops[..., self.species['mRNA']],
             self.params['delta_srna'] * pops[..., self.species['sRNA']],
             self.params['delta_tetr'] * pops[..., self.species['TetR']],
-        ]
-
-    def _propensities_np(self, pops: np.ndarray) -> List[np.ndarray]:
-        param1 = self.params['K2'] / self.params['volume'] / \
-            (1 + self.params['aTc'] / self.params['KD'])
-        ptet_tx_init = self.params['TX_ptet'] / (self.params['K1'] + (
-            np.ones(pops.shape[:-1]) + pops[..., self.species['TetR']] * param1) ** 2)
-        return [
-            self.params['volume'] * ptet_tx_init,
-            self.params['volume'] * ptet_tx_init,
-            self.params['k_t'] * pops[..., self.species['mRNA']],
-            self.params['k_rep'] / self.params['volume'] * pops[...,
-                                                                self.species['mRNA']] * pops[..., self.species['sRNA']],
-            self.params['delta_mrna'] * pops[..., self.species['mRNA']],
-            self.params['delta_srna'] * pops[..., self.species['sRNA']],
-            self.params['delta_tetr'] * pops[..., self.species['TetR']],
-        ]
-
-
-if __name__ == "__main__":
-    system = TetRsRNAInTrans()
-    n_species = len(system.species_names)
-    n_trajs = 5
-    pops = torch.rand((n_trajs, n_species))
-    n_reactions = system.propensities(pops).shape[0]
-    assert system.stoichiometry_matrix.shape == (n_species, n_reactions), \
-        print(n_reactions, n_species, system.stoichiometry_matrix.shape)
+        ])
