@@ -1,6 +1,6 @@
 # Gillespie Stochastic Simulation implememntation in pytorch
 
-This repo implements direct and first reaction methods of Gillespie [stochastic simulation algorithm](https://pubs.acs.org/doi/pdf/10.1021/j100540a008) for solving the Master equation. The code is based on PyTorch and can be used on CPU and GPU alike. The repo was developed and tested on Ubuntu 22.04 and Ubuntu 22.04 WSL2.
+This repo implements direct and first reaction methods of Gillespie [stochastic simulation algorithm](https://pubs.acs.org/doi/pdf/10.1021/j100540a008) for solving the Master equation. The code is based on PyTorch and can be used on CPU and GPU alike. The repo was developed and tested on Ubuntu 20.04 and Ubuntu 22.04 WSL2.
 
 ## Installation
 
@@ -31,18 +31,18 @@ Connect to the container running `bash` while mounting the `./logs` directory
 ```
 docker run -it --rm --expose 8888 --gpus all -v ./logs:/home/docker_user/project/logs --group-add $(id -g) --user docker_user ssa_solvers bash
 ```
-This command uses the Nvidia docker wrapper for GPU access, see [Nvidia docker installation notes](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for detail. Note that the port 8888 is exposed to allow running Jupyter notebooks.
+This command uses the Nvidia docker wrapper for GPU access, see [Nvidia docker installation notes](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for details. Note that port 8888 is exposed to allow running Jupyter notebooks.
 
 ## Creating a new chemical reaction system class for simulation
 
-Base reaction system is encoded in `BaseChemicalReactionSystem` class in `ssa_solvers.chemical_reaction_system`.
+The base reaction system is encoded in `BaseChemicalReactionSystem` class in `ssa_solvers.chemical_reaction_system`.
 To perform simulations one needs to create a subclass of `BaseChemicalReactionSystem` with the following fields overloaded:
 
 `self.stoichiometry_matrix` - Stoichiometric matrix of the chemical reaction system
 
 `self._params` - Dictionary of parameters of the chemical reaction system with a string key for parameter name and a float value for parameter value
 
-`self._species` - Dictionary of species of the chemical reaciton system with a string key for species name and an integer value for species index in the species vector
+`self._species` - Dictionary of species of the chemical reaction system with a string key for species name and an integer value for species index in the species vector
 
 The following method calculates the propensity vector based on the current population, e.g.:
 
@@ -109,7 +109,7 @@ time_grid = torch.arange(0, end_time, int(
 means, stds = ssa_simulator.data_set.mean_and_std(time_grid=time_grid)
 ```
 
-## Testing pre-definied circuits
+## Testing pre-defined circuits
 
 ### Command line scripts
 

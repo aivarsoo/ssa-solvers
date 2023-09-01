@@ -26,8 +26,8 @@
 				"ms-toolsai.vscode-jupyter-cell-tags",
 				"ms-toolsai.vscode-jupyter-slideshow"
 			]
-		},
-	},
+		}
+	}
 	// "postCreateCommand": "bash | cat /etc/os-release",
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
