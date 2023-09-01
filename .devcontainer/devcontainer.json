@@ -5,9 +5,7 @@
 	// "image": "ssa_solvers:latest",
 	"name": "Existing DockerFile",
 	"build": {
-		// Sets the run context to one level up instead of the .devcontainer folder.
 		"context": "..",
-		// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
 		"dockerfile": "../Dockerfile"
 	},
 	"runArgs": [
@@ -25,10 +23,10 @@
 				"ms-toolsai.jupyter-renderers",
 				"ms-toolsai.vscode-jupyter-cell-tags",
 				"ms-toolsai.vscode-jupyter-slideshow"
-			]
+			],
 		}
-	}
-	// "postCreateCommand": "bash | cat /etc/os-release",
+	},
+	"postStartCommand": "pip install -e . && pre-commit run && bash"
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
