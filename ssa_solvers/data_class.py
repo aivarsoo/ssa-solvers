@@ -23,7 +23,9 @@ class SimulationDataBase:
         self.species_idx = [str(idx) for idx in range(self.n_species)]
         path = Path(cfg['stochastic_sim_cfg']['path'])
         timestamp = datetime.now()
-        self.log_path = path / cfg['name'] / str(timestamp)[:-4]
+        self.log_path = path / \
+            Path(cfg['name'] + '_' + cfg['stochastic_sim_cfg']
+                 ['solver']) / str(timestamp)
         os.makedirs(self.log_path)
         self.raw_trajectories_computed = False
         self.trajectories_processed = False

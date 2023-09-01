@@ -13,7 +13,6 @@
 	"runArgs": [
 		"--user", "docker_user",
 		"--expose", "8888-8900",
-		"--runtime", "nvidia",
 		"--gpus", "all"
 	],
 	"customizations": {

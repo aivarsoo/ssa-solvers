@@ -4,7 +4,7 @@ from typing import Tuple
 import torch
 import xitorch.integrate as integrate
 
-from ssa_solvers.chemical_reacrion_system import BaseChemicalReactionSystem
+from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
 from ssa_solvers.data_class import SimulationDataInCSV
 from ssa_solvers.data_class import SimulationDataInMemory
 from ssa_solvers.utils import EPS
@@ -51,7 +51,7 @@ class BaseSimulateOneStepMixin:
 class SimulateOneStepDirectMixin(BaseSimulateOneStepMixin):
     "Mixes in a one step simulation using the direct Gillespie simulation method"
 
-    def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor) -> Tuple(torch.Tensor, torch.Tensor):
+    def simulate_one_step(self, pops: torch.Tensor, times: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Simulates one step of the direct Gillespie simulation method
         :param pops:  current population values (updated in the function)

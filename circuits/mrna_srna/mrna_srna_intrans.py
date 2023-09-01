@@ -32,7 +32,7 @@ class mRNAsRNAInTrans(BaseChemicalReactionSystem):
             [0, 1,  0, -1,  0, -1,  0],
             [0, 0, 1,  0,  0,  0, -1]
         ], dtype=torch.int64, device=device)
-        super(mRNAsRNAInCis, self).__init__(device=device)
+        super(mRNAsRNAInTrans, self).__init__(device=device)
 
     def propensities(self, pops: torch.Tensor) -> torch.Tensor:
         """

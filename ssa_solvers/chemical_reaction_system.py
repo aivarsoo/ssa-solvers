@@ -38,7 +38,7 @@ class BaseChemicalReactionSystem:
         :param pops: current population number
         :return: the function computing the Jacobian of the vector field for the ODE simulation
         """
-       return lambda time, pops: self._jacobian(pops)
+        return lambda time, pops: self._jacobian(pops)
 
     def _jacobian(self, pops: torch.Tensor):
         """

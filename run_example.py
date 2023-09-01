@@ -15,7 +15,7 @@ choose_device = {
 }
 
 
-def run_simulations(circuit: str = "auto", end_time: float = 300, n_steps: int = 100, n_traj: int = 500, device="cuda"):
+def run_simulations(circuit: str = "mrna", end_time: float = 300, n_steps: int = 100, n_traj: int = 500, device="cuda"):
     device = choose_device[device]
     run_method[circuit](end_time=end_time, n_steps=n_steps,
                         n_traj=n_traj, device=device)

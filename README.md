@@ -29,9 +29,9 @@ chmod 775 -R logs
 
 Connect to the container running `bash` while mounting the `./logs` directory
 ```
-docker run -it -rm --expose 8888 --runtime nvidia --gpus all -v ./logs:/home/docker_user/project/logs --group-add $(id -g) --user docker_user ssa_solvers bash
+docker run -it --rm --expose 8888 --gpus all -v ./logs:/home/docker_user/project/logs --group-add $(id -g) --user docker_user ssa_solvers bash
 ```
-Note that the port 8888 is exposed to allow running Jupyter notebooks. This command uses the Nvidia docker wrapper for GPU access, see [Nvidia docker installation notes](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for detail.
+This command uses the Nvidia docker wrapper for GPU access, see [Nvidia docker installation notes](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for detail. Note that the port 8888 is exposed to allow running Jupyter notebooks.
 
 ## Creating a new chemical reaction system class for simulation
 
