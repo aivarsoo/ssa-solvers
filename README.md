@@ -62,7 +62,8 @@ cfg = {
                               'save_to_file': True,
                               'trajectories_per_batch': 50000,
                               'path': './logs/',
-                              'solver': 'direct'},
+                              'solver': 'direct',
+                              'precision': 'fp32'},
        'ode_sim_cfg': {'solver': 'RK23',
                        'atol': 1e-4,
                        'rtol': 1e-10}
@@ -77,6 +78,7 @@ cfg = {
 * `trajectories_per_batch` - number of trajectories to simulate at once. Set to `sys.maxsize` if `save_to_file = False`, i.e., `trajecories_per_batch = n_trajectories`
 * `solver` - type of a solver: `direct` or `first_reaction`
 * `path` - path to save the logs and data
+* `precision` - float precision (`fp64` - double, `fp32` - single and `fp16` half precision, default: `fp16`)
 
 `cfg['ode_sim_cfg']` - parameters for ODE simulation using `solve_ivp` method from `xitorch` package, see [xitorch documentation](https://xitorch.readthedocs.io/en/latest/api/xitorch_integrate/solve_ivp.html) for details
 

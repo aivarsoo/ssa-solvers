@@ -7,10 +7,11 @@ import xitorch.integrate as integrate
 from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
 from ssa_solvers.data_class import SimulationDataInCSV
 from ssa_solvers.data_class import SimulationDataInMemory
-from ssa_solvers.utils import EPS
 
 
 class DeterministicSimulator:
+    "Wrapper around xitorch.integrate.solve_ivp for solving ODEs"
+
     def __init__(self,
                  reaction_system: BaseChemicalReactionSystem,
                  cfg: Dict):
@@ -44,7 +45,7 @@ class BaseSimulateOneStepMixin:
         :return: a sample form  Exp(1 / propensity_values)
         """
         q = torch.clamp(torch.rand(*propensity_values.shape,
-                        device=self.device), EPS, 1)
+                        device=self.device), self.EPS, 1)
         return -q.log() / propensity_values
 
 
@@ -106,6 +107,7 @@ class SimulateOneStepFirstReactionMixin(BaseSimulateOneStepMixin):
 
 
 class StochasticSimulator(SimulateOneStepDirectMixin, SimulateOneStepFirstReactionMixin):
+    "Stochastic simulator class realizing Gillespie Stochastic Simulation algorithm"
 
     def __init__(self,
                  reaction_system: BaseChemicalReactionSystem,
@@ -119,13 +121,6 @@ class StochasticSimulator(SimulateOneStepDirectMixin, SimulateOneStepFirstReacti
         self.cfg = cfg
         self.device = device
         self.checkpoint_freq = self.cfg['stochastic_sim_cfg']['checkpoint_freq']
-        self.solver = self.cfg['stochastic_sim_cfg']['solver']
-        if self.solver == 'first_reaction':
-            SimulateOneStepFirstReactionMixin.__init__(self)
-        elif self.solver == 'direct':
-            SimulateOneStepDirectMixin.__init__(self)
-        else:
-            raise NotImplementedError
         self.reaction_system = reaction_system
         self.data_class = SimulationDataInCSV if cfg['stochastic_sim_cfg'][
             'save_to_file'] else SimulationDataInMemory
@@ -134,6 +129,14 @@ class StochasticSimulator(SimulateOneStepDirectMixin, SimulateOneStepFirstReacti
             device=device,
             cfg=self.cfg)
         self.log_path = self.data_set.log_path
+        self.EPS = self.data_set.EPS
+        self.solver = self.cfg['stochastic_sim_cfg']['solver']
+        if self.solver == 'first_reaction':
+            SimulateOneStepFirstReactionMixin.__init__(self)
+        elif self.solver == 'direct':
+            SimulateOneStepDirectMixin.__init__(self)
+        else:
+            raise NotImplementedError
 
     def set_reaction_params(self, params: Dict):
         """
@@ -174,7 +177,8 @@ class StochasticSimulator(SimulateOneStepDirectMixin, SimulateOneStepFirstReacti
                           n_trajectories % trajectories_per_batch)
             self.simulate_trajectories(
                 torch.repeat_interleave(init_pops, n_trajs, dim=0),
-                torch.zeros((n_trajs, ), device=self.device),
+                torch.zeros((n_trajs, ), dtype=torch.int64,
+                            device=self.device),
                 batch_idx=n_trajectories // trajectories_per_batch)
 
     def simulate_trajectories(self, pops: torch.Tensor, times: torch.Tensor, batch_idx=0):

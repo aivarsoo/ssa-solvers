@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
+from typing import Tuple
 
 import einops
 import pandas as pd
@@ -29,6 +30,12 @@ class SimulationDataBase:
         os.makedirs(self.log_path)
         self.raw_trajectories_computed = False
         self.trajectories_processed = False
+        precision_vars = {
+            'fp64': (torch.float64, 1e-14),
+            'fp32': (torch.float32, 1e-7),
+            'fp16': (torch.float16, 1e-3)}
+        precision = cfg['stochastic_sim_cfg'].get('precision', 'fp16')
+        self.float_type, self.EPS = precision_vars[precision]
 
     def reset(self):
         "Resets the data set"
@@ -193,16 +200,18 @@ class SimulationDataInCSV(SimulationDataBase):
         super().mean_and_std(time_grid=time_grid)
         files = os.listdir(self.processed_data_path)
         time_length = len(files)
-        _mean = torch.zeros((self.n_species, time_length), device=self.device)
-        _std = torch.zeros((self.n_species, time_length), device=self.device)
+        _mean = torch.zeros((self.n_species, time_length),
+                            dtype=self.float_type, device=self.device)
+        _std = torch.zeros((self.n_species, time_length),
+                           dtype=self.float_type, device=self.device)
         for file in files:
             t_idx = int(file.split("_")[0])
             df = pd.read_csv(self.processed_data_path /
                              file, usecols=self.species_idx)
             _mean[:, t_idx] = torch.as_tensor(
-                df.mean().values, device=self.device)
+                df.mean().values, dtype=self.float_type, device=self.device)
             _std[:, t_idx] = torch.as_tensor(
-                df.std().values, device=self.device)
+                df.std().values, dtype=self.float_type, device=self.device)
         return _mean.cpu(), _std.cpu()
 
     # helper files
@@ -317,11 +326,11 @@ class SimulationDataInMemory(SimulationDataBase):
             self.raw_times_trajectories, self.raw_pops_trajectories, time_grid)
         self.trajectories_processed = True
 
-    def mean_and_std(self, time_grid: torch.Tensor = torch.zeros((1,))) -> torch.Tensor:
+    def mean_and_std(self, time_grid: torch.Tensor = torch.zeros((1,))) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Computes means and variances of the species of the species numbers
         :return: mean and variance of the pops
         """
         super().mean_and_std(time_grid=time_grid)
-        float_data = self.processed_pops_trajectories.float()
-        return torch.mean(float_data, dim=0).cpu(), torch.std(float_data, dim=0).cpu()
+        data = self.processed_pops_trajectories.type(self.float_type)
+        return torch.mean(data, dim=0).cpu(), torch.std(data, dim=0).cpu()
