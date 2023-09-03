@@ -1,10 +1,15 @@
+from __future__ import annotations
+
+from typing import List
+
+import numpy as np
 import torch
 
 from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
 
 cfg = {'name': 'mRNAsRNAInCis',
        'stochastic_sim_cfg': {'checkpoint_freq': 1,
-                              'save_to_file': True,
+                              'save_to_file': False,
                               'trajectories_per_batch': 50000,
                               'path': './logs/',
                               'solver': 'direct'},
@@ -16,7 +21,7 @@ cfg = {'name': 'mRNAsRNAInCis',
 
 class mRNAsRNAInCis(BaseChemicalReactionSystem):
     _species = {'fmRNA': 0, 'Prot': 1}
-    _params = {'volume': 0.6022, 'beta_fmrna': 1.0,
+    _params = {'volume': 0.6022, 'beta_fmrna': 2.0,
                'delta_fmrna': 0.0482, 'delta_p': 0.0234, 'k_t': 1.0, 'k_rep': 0.3}
 
     def __init__(self, device=torch.device("cpu")):
@@ -29,11 +34,11 @@ class mRNAsRNAInCis(BaseChemicalReactionSystem):
         ], dtype=torch.int64, device=device)
         super(mRNAsRNAInCis, self).__init__(device=device)
 
-    def propensities(self, pops: torch.Tensor) -> torch.Tensor:
+    def propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
         """
-        Composes a vector of propensity functions
+        Composes a list of propensity functions
         :params pops: current population
-        :return: vector of propensities
+        :return: list of propensities
         """
         return torch.vstack([
             self.params['volume'] * self.params['beta_fmrna'] *

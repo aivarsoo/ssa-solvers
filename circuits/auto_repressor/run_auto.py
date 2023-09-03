@@ -1,28 +1,21 @@
-from __future__ import annotations
+from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 
+from circuits.auto_repressor.tetr_srna_incis import cfg
+from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis
 from ssa_solvers.simulators import DeterministicSimulator
 from ssa_solvers.simulators import StochasticSimulator
 
 torch.set_default_tensor_type(torch.FloatTensor)
 
-# device = torch.device('cuda:0') if torch.cuda.is_available else torch.device("cpu")
 
-
-if __name__ == "__main__":
-    device = torch.device("cpu")
-    end_time = 300
-    n_steps = 150
-    n_traj = 5000
-    time_grid = np.arange(0, end_time, end_time / n_steps)
-
-    from circuits.auto_repressor.tetr_srna_incis import TetRsRNAInCis, cfg
-
+def run_auto(end_time: float = 300, n_steps: int = 150, n_traj: int = 100, device=torch.device('cpu')):
+    time_grid = torch.arange(0, end_time, int(
+        end_time / n_steps), device=device)
     cfg['stochastic_sim_cfg'].update(
-        dict(save_to_file=True, trajectories_per_file=50000))
+        dict(save_to_file=True, trajectories_per_batch=50000))
 
     ode_simulator = DeterministicSimulator(
         reaction_system=TetRsRNAInCis(device=device),
@@ -35,20 +28,20 @@ if __name__ == "__main__":
         device=device
     )
     reaction_system_incis.params = {'aTc': 100}  # setting aTc level
-    # torch.randint(1, (reaction_system.n_species, ))
     init_pops = torch.zeros(
         (reaction_system_incis.n_species, ), dtype=torch.int64, device=device)
     print("starting simulation")
-    ode_res_incis = ode_simulator.simulate(init_pops=np.zeros(
-        (reaction_system_incis.n_species,)), time_grid=time_grid)
+    ode_res_incis = ode_simulator.simulate(init_pops=torch.zeros(
+        (reaction_system_incis.n_species,), device=device), time_grid=time_grid)
     ssa_simulator_incis.simulate(
         init_pops=init_pops, end_time=end_time, n_trajectories=n_traj)
-
     print("computing mean and std")
     means_incis, stds_incis = ssa_simulator_incis.data_set.mean_and_std(
         time_grid=time_grid)
 
     species_idx_incis = 1
+    time_grid = time_grid.cpu()
+
     plt.figure()
     plt.plot(
         time_grid, means_incis[species_idx_incis, :], 'b', label='Mean SSA (in cis)')
@@ -60,4 +53,5 @@ if __name__ == "__main__":
     plt.xlabel('Time (s)')
     plt.ylabel('Number of species')
     plt.legend()
-    plt.savefig('my_plot.png')
+    plt.savefig(Path(ssa_simulator_incis.log_path) / 'plot.png')
+    print("done")

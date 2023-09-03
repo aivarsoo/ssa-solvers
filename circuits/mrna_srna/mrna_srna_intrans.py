@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import List
 
-import numpy as np
 import torch
 
 from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
@@ -10,7 +9,7 @@ from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
 cfg = {'name': 'mRNAsRNAInTrans',
        'stochastic_sim_cfg': {'checkpoint_freq': 1,
                               'save_to_file': True,
-                              'trajectories_per_file': 50000,
+                              'trajectories_per_batch': 50000,
                               'path': './logs/',
                               'solver': 'direct'},
        'ode_sim_cfg': {'solver': 'RK23',
@@ -35,13 +34,13 @@ class mRNAsRNAInTrans(BaseChemicalReactionSystem):
         ], dtype=torch.int64, device=device)
         super(mRNAsRNAInTrans, self).__init__(device=device)
 
-    def _propensities(self, pops: torch.Tensor) -> List[torch.Tensor]:
+    def propensities(self, pops: torch.Tensor) -> torch.Tensor:
         """
-        Composes a list of propensity functions
+        Composes a vector of propensity functions
         :params pops: current population
-        :return: list of propensities
+        :return: vector of propensities
         """
-        return [
+        return torch.vstack([
             self.params['volume'] * self.params['beta_m'] *
             torch.ones(pops.shape[:-1], device=self.device),
             self.params['volume'] * self.params['beta_s'] *
@@ -52,34 +51,4 @@ class mRNAsRNAInTrans(BaseChemicalReactionSystem):
             self.params['delta_m'] * pops[..., self.species['mRNA']],
             self.params['delta_s'] * pops[..., self.species['sRNA']],
             self.params['delta_p'] * pops[..., self.species['Prot']],
-        ]
-
-    def _propensities_np(self, pops: np.ndarray) -> List[np.ndarray]:
-        """
-        Composes a list of propensity functions in numpy (hardcoded for speed)
-        :params pops: current population
-        :return: list of propensities
-        """
-        return [
-            self.params['volume'] * self.params['beta_m'] *
-            np.ones(pops.shape[:-1]),
-            self.params['volume'] * self.params['beta_s'] *
-            np.ones(pops.shape[:-1]),
-            self.params['k_t'] * pops[..., self.species['mRNA']],
-            self.params['k_rep'] / self.params['volume'] * pops[...,
-                                                                self.species['mRNA']] * pops[..., self.species['sRNA']],
-            self.params['delta_m'] * pops[..., self.species['mRNA']],
-            self.params['delta_s'] * pops[..., self.species['sRNA']],
-            self.params['delta_p'] * pops[..., self.species['Prot']],
-        ]
-
-
-if __name__ == "__main__":
-    system = mRNAsRNAInTrans()
-    n_species = len(system.species.species_names)
-    n_trajs = 5
-    pops = torch.rand((n_trajs, n_species))
-    n_reactions = system.propensities(pops).shape[0]
-    assert system.stoichiometry_matrix.shape == (n_species, n_reactions), \
-        print(n_reactions, n_species, system.stoichiometry_matrix.shape)
-    pass
+        ])
