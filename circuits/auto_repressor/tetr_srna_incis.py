@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-from typing import List
-
 import torch
 
 from ssa_solvers.chemical_reaction_system import BaseChemicalReactionSystem
