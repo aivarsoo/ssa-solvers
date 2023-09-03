@@ -22,7 +22,7 @@ class SimulationDataBase:
 
         self.n_species = n_species
         self.species_idx = [str(idx) for idx in range(self.n_species)]
-        path = Path(cfg['stochastic_sim_cfg']['path'])
+        path = Path(cfg['stochastic_sim_cfg'].get('path', './logs'))
         timestamp = datetime.now()
         self.log_path = path / \
             Path(cfg['name'] + '_' + cfg['stochastic_sim_cfg']

@@ -130,7 +130,7 @@ class StochasticSimulator(SimulateOneStepDirectMixin, SimulateOneStepFirstReacti
             cfg=self.cfg)
         self.log_path = self.data_set.log_path
         self.EPS = self.data_set.EPS
-        self.solver = self.cfg['stochastic_sim_cfg']['solver']
+        self.solver = self.cfg['stochastic_sim_cfg'].get('solver', 'direct')
         if self.solver == 'first_reaction':
             SimulateOneStepFirstReactionMixin.__init__(self)
         elif self.solver == 'direct':
