@@ -42,10 +42,12 @@ def run_auto(end_time: float = 300, n_steps: int = 150, n_traj: int = 100, devic
     species_idx_incis = 1
     time_grid = time_grid.cpu()
 
+    conf_interval = stds_incis[species_idx_incis,
+                               :] / torch.sqrt(torch.tensor(n_traj))
     plt.figure()
     plt.plot(
         time_grid, means_incis[species_idx_incis, :], 'b', label='Mean SSA (in cis)')
-    plt.fill_between(time_grid, means_incis[species_idx_incis, :]+stds_incis[species_idx_incis, :], means_incis[species_idx_incis, :]-stds_incis[species_idx_incis, :],
+    plt.fill_between(time_grid, means_incis[species_idx_incis, :] + conf_interval, means_incis[species_idx_incis, :] - conf_interval,
                      color='b', alpha=0.3)
     plt.xlim([0, end_time])
     plt.plot(
