@@ -10,7 +10,7 @@ setup(
     packages=['ssa_solvers'],
     install_requires=['torch==2.0.0',
                       'einops==0.6.1',
-                      'jupyterlab==3.4.3',
+                      'jupyterlab>=3.6.7',
                       'matplotlib==3.5.2',
                       'line-profiler==3.5.1',
                       'numpy==1.25.2',
